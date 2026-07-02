@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
@@ -6,22 +6,24 @@ import { drizzle } from "drizzle-orm/pglite";
 import type { Db, UserCtx } from "../src/db/client.js";
 import { users } from "../src/db/schema.js";
 
-const migrationPath = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "drizzle",
-  "0000_init.sql",
-);
+const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), "..", "drizzle");
+
+// Every top-level migration, applied in numeric order — the same set the real
+// migrator runs, so the test schema never drifts from production.
+const migrationFiles = readdirSync(migrationsDir)
+  .filter((f) => f.endsWith(".sql"))
+  .sort();
 
 /**
- * Fresh in-memory Postgres with the real migration applied. Note: PGlite runs
+ * Fresh in-memory Postgres with all real migrations applied. Note: PGlite runs
  * as superuser so RLS is bypassed here — repos must (and do) filter by
  * user_id explicitly; RLS is the belt-and-braces layer for query_data.
  */
 export async function createTestDb(): Promise<{ db: Db; pglite: PGlite }> {
   const pglite = new PGlite();
-  const sql = readFileSync(migrationPath, "utf8");
-  await pglite.exec(sql);
+  for (const file of migrationFiles) {
+    await pglite.exec(readFileSync(join(migrationsDir, file), "utf8"));
+  }
   const db = drizzle(pglite, { casing: "snake_case" }) as unknown as Db;
   return { db, pglite };
 }

@@ -41,6 +41,8 @@ from garminconnect import Garmin
 
 # Activity summary fields forwarded to the ingest endpoint. Everything else
 # (GPS polylines, splits, HR time series) is dropped to keep payloads lean.
+# Training-effect/load and running-dynamics fields have no first-class column
+# server-side; they land in workout_sessions.extras (see import/garmin.ts).
 ACTIVITY_FIELDS = [
     "activityId",
     "activityName",
@@ -56,7 +58,27 @@ ACTIVITY_FIELDS = [
     "calories",
     "elevationGain",
     "averageSpeed",
+    # training load / effect
+    "aerobicTrainingEffect",
+    "anaerobicTrainingEffect",
+    "activityTrainingLoad",
+    "trainingEffectLabel",
+    # running dynamics
+    "averageRunningCadenceInStepsPerMinute",
+    "avgPower",
+    "avgStrideLength",
+    "avgGroundContactTime",
+    "avgVerticalOscillation",
 ]
+
+
+def first(data):
+    """Both get_training_readiness and get_max_metrics return a single-element
+    list wrapping the day's record; unwrap it (tolerating a bare dict or None)
+    so the server always receives the object, never the list."""
+    if isinstance(data, list):
+        return data[0] if data else None
+    return data or None
 
 
 def env(name: str, default: str | None = None) -> str:
@@ -130,6 +152,17 @@ def pull(days: int) -> None:
             entry["hrv"] = hrv.get("hrvSummary")
         except Exception as e:  # noqa: BLE001
             errors.append(f"hrv {d}: {e}")
+        # Training readiness and VO2 max are device-dependent — older watches
+        # don't compute them and the endpoints 404. A miss is a warning, never
+        # fatal; the field is simply omitted from the day.
+        try:
+            entry["trainingReadiness"] = first(garmin.get_training_readiness(d))
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"training_readiness {d}: {e}")
+        try:
+            entry["maxMetrics"] = first(garmin.get_max_metrics(d))
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"max_metrics {d}: {e}")
         day_payloads.append(entry)
 
     start = (today - timedelta(days=days - 1)).isoformat()

@@ -43,6 +43,9 @@ export const garminIngestPayload = z.object({
         stats: rawObject.nullish(),
         sleep: rawObject.nullish(),
         hrv: rawObject.nullish(),
+        // get_training_readiness(d)[0] and get_max_metrics(d)[0], forwarded raw.
+        trainingReadiness: rawObject.nullish(),
+        maxMetrics: rawObject.nullish(),
       }),
     )
     .default([]),
@@ -94,47 +97,63 @@ export function garminDayToCheckin(day: {
   stats?: Record<string, unknown> | null;
   sleep?: Record<string, unknown> | null;
   hrv?: Record<string, unknown> | null;
+  trainingReadiness?: Record<string, unknown> | null;
+  maxMetrics?: Record<string, unknown> | null;
 }): LogDailyCheckinInput | null {
   const stats = day.stats ?? {};
+  const sleep = day.sleep ?? {};
   const input: LogDailyCheckinInput = { date: day.date };
   let any = false;
 
-  const steps = num(stats.totalSteps);
-  if (steps !== undefined && steps > 0) {
-    input.steps = Math.round(steps);
+  // Screen a raw Garmin number, then store the transformed value. `keep` gates
+  // the RAW reading (Garmin signals "no data" with negative sentinels, and an
+  // unworn watch reports zeros) — it must run before any clamping, or a -1 gets
+  // squashed to a valid-looking 0. Default: strictly positive.
+  const put = <K extends keyof LogDailyCheckinInput>(
+    key: K,
+    raw: unknown,
+    transform: (n: number) => LogDailyCheckinInput[K],
+    keep: (n: number) => boolean = (n) => n > 0,
+  ): void => {
+    const v = num(raw);
+    if (v === undefined || !keep(v)) return;
+    input[key] = transform(v);
     any = true;
-  }
-  const rhr = num(stats.restingHeartRate);
-  if (rhr !== undefined && rhr > 0) {
-    input.restingHr = Math.round(rhr);
-    any = true;
-  }
-  const bodyBattery = num(stats.bodyBatteryHighestValue);
-  if (bodyBattery !== undefined && bodyBattery > 0) {
-    input.bodyBattery = clamp(bodyBattery, 0, 100);
-    any = true;
-  }
-  const stress = num(stats.averageStressLevel);
-  if (stress !== undefined && stress >= 0) {
-    input.stressScore = clamp(stress, 0, 100);
-    any = true;
-  }
-  const sleepS = num(day.sleep?.sleepTimeSeconds);
-  if (sleepS !== undefined && sleepS > 0) {
-    input.sleepDuration = { value: sleepS, unit: "s" };
-    any = true;
-  }
-  const scores = day.sleep?.sleepScores as { overall?: { value?: unknown } } | undefined;
-  const sleepScore = num(scores?.overall?.value);
-  if (sleepScore !== undefined && sleepScore > 0) {
-    input.sleepScore = clamp(sleepScore, 0, 100);
-    any = true;
-  }
-  const hrv = num(day.hrv?.lastNightAvg);
-  if (hrv !== undefined && hrv > 0) {
-    input.hrvMs = hrv;
-    any = true;
-  }
+  };
+
+  const round = (n: number) => Math.round(n);
+  const bounded = (n: number) => clamp(n, 0, 100);
+  const seconds = (n: number) => ({ value: n, unit: "s" as const });
+  const nonNeg = (n: number) => n >= 0; // 0 is real (e.g. no intensity minutes)
+
+  put("steps", stats.totalSteps, round);
+  put("restingHr", stats.restingHeartRate, round);
+  put("bodyBattery", stats.bodyBatteryHighestValue, bounded);
+  put("bodyBatteryLow", stats.bodyBatteryLowestValue, bounded, nonNeg);
+  put("stressScore", stats.averageStressLevel, bounded, nonNeg);
+  put("activeKcal", stats.activeKilocalories, round);
+  put("bmrKcal", stats.bmrKilocalories, round);
+  put("intensityMinutesModerate", stats.moderateIntensityMinutes, round, nonNeg);
+  put("intensityMinutesVigorous", stats.vigorousIntensityMinutes, round, nonNeg);
+  // Waking respiration; fall back to the overnight average from the sleep DTO.
+  put("respirationAvg", stats.avgWakingRespirationValue ?? sleep.averageRespirationValue, (n) => n);
+  put("spo2Avg", sleep.averageSpO2Value ?? stats.averageSpo2, round);
+
+  put("sleepDuration", sleep.sleepTimeSeconds, seconds);
+  put("sleepDeep", sleep.deepSleepSeconds, seconds);
+  put("sleepLight", sleep.lightSleepSeconds, seconds);
+  put("sleepRem", sleep.remSleepSeconds, seconds);
+  put("sleepAwake", sleep.awakeSleepSeconds, seconds);
+  const scores = sleep.sleepScores as { overall?: { value?: unknown } } | undefined;
+  put("sleepScore", scores?.overall?.value, bounded);
+
+  put("hrvMs", day.hrv?.lastNightAvg, (n) => n);
+
+  // get_training_readiness(d)[0].score — the composite recovery score.
+  put("trainingReadiness", day.trainingReadiness?.score, bounded);
+  // get_max_metrics(d)[0].generic.vo2MaxValue — running VO2 max estimate.
+  const generic = day.maxMetrics?.generic as { vo2MaxValue?: unknown } | undefined;
+  put("vo2max", generic?.vo2MaxValue, (n) => n);
 
   return any ? input : null;
 }
@@ -171,6 +190,27 @@ interface MappedActivity {
   maxHr?: number;
   calories?: number;
   elevationGainM?: number;
+  extras?: Record<string, unknown>;
+}
+
+/** Compact bag of measured activity metrics that have no first-class column —
+ * training effect/load and running dynamics. Returns undefined when empty so
+ * we never stamp an empty object onto a session. */
+function activityExtras(raw: Record<string, unknown>): Record<string, unknown> | undefined {
+  const fields: Record<string, unknown> = {
+    aerobicTrainingEffect: num(raw.aerobicTrainingEffect),
+    anaerobicTrainingEffect: num(raw.anaerobicTrainingEffect),
+    trainingLoad: num(raw.activityTrainingLoad),
+    trainingEffectLabel: str(raw.trainingEffectLabel),
+    avgRunCadence: num(raw.averageRunningCadenceInStepsPerMinute),
+    avgPower: num(raw.avgPower),
+    avgStrideLengthCm: num(raw.avgStrideLength),
+    avgGroundContactTimeMs: num(raw.avgGroundContactTime),
+    avgVerticalOscillationCm: num(raw.avgVerticalOscillation),
+  };
+  const extras: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(fields)) if (v !== undefined) extras[k] = v;
+  return Object.keys(extras).length > 0 ? extras : undefined;
 }
 
 function mapActivity(raw: Record<string, unknown>): MappedActivity | null {
@@ -196,6 +236,7 @@ function mapActivity(raw: Record<string, unknown>): MappedActivity | null {
     maxHr: num(raw.maxHR) !== undefined ? Math.round(num(raw.maxHR)!) : undefined,
     calories: num(raw.calories) !== undefined ? Math.round(num(raw.calories)!) : undefined,
     elevationGainM: num(raw.elevationGain),
+    extras: activityExtras(raw),
   };
 }
 
@@ -259,6 +300,7 @@ async function enrichSession(
       avgHr: s.avgHr ?? a.avgHr,
       maxHr: s.maxHr ?? a.maxHr,
       calories: s.calories ?? a.calories,
+      extras: s.extras ?? a.extras,
       updatedAt: new Date(),
     })
     .where(eq(workoutSessions.id, s.id));
@@ -306,6 +348,7 @@ async function createSessionFromActivity(db: Db, ctx: UserCtx, a: MappedActivity
       avgHr: a.avgHr,
       maxHr: a.maxHr,
       calories: a.calories,
+      extras: a.extras,
     })
     .returning();
   const s = sessionRows[0];

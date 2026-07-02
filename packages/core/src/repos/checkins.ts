@@ -30,11 +30,26 @@ export async function upsertDailyCheckin(
     provided.sleepDurationS = Math.round(toSeconds(input.sleepDuration));
   if (input.sleepScore !== undefined) provided.sleepScore = input.sleepScore;
   if (input.sleepQuality !== undefined) provided.sleepQualitySubjective = input.sleepQuality;
+  if (input.sleepDeep !== undefined) provided.sleepDeepS = Math.round(toSeconds(input.sleepDeep));
+  if (input.sleepLight !== undefined) provided.sleepLightS = Math.round(toSeconds(input.sleepLight));
+  if (input.sleepRem !== undefined) provided.sleepRemS = Math.round(toSeconds(input.sleepRem));
+  if (input.sleepAwake !== undefined) provided.sleepAwakeS = Math.round(toSeconds(input.sleepAwake));
   if (input.hrvMs !== undefined) provided.hrvMs = input.hrvMs;
   if (input.restingHr !== undefined) provided.restingHr = input.restingHr;
   if (input.steps !== undefined) provided.steps = input.steps;
   if (input.bodyBattery !== undefined) provided.bodyBattery = input.bodyBattery;
+  if (input.bodyBatteryLow !== undefined) provided.bodyBatteryLow = input.bodyBatteryLow;
   if (input.stressScore !== undefined) provided.stressScore = input.stressScore;
+  if (input.respirationAvg !== undefined) provided.respirationAvg = input.respirationAvg;
+  if (input.spo2Avg !== undefined) provided.spo2Avg = input.spo2Avg;
+  if (input.activeKcal !== undefined) provided.activeKcal = input.activeKcal;
+  if (input.bmrKcal !== undefined) provided.bmrKcal = input.bmrKcal;
+  if (input.intensityMinutesModerate !== undefined)
+    provided.intensityMinutesModerate = input.intensityMinutesModerate;
+  if (input.intensityMinutesVigorous !== undefined)
+    provided.intensityMinutesVigorous = input.intensityMinutesVigorous;
+  if (input.trainingReadiness !== undefined) provided.trainingReadiness = input.trainingReadiness;
+  if (input.vo2max !== undefined) provided.vo2max = input.vo2max;
   if (input.energy !== undefined) provided.energySubjective = input.energy;
   if (input.sorenessNotes !== undefined) provided.sorenessNotes = input.sorenessNotes;
   if (input.notes !== undefined) provided.notes = input.notes;

@@ -129,7 +129,12 @@ OAuth identities map to `users` by allowlisted email. No roles/permissions in v1
 ```
 daily_metrics    user_id, local_date (unique per user), source,
                  sleep_duration_s, sleep_score, sleep_quality_subjective (1-5),
-                 hrv_ms, resting_hr, steps, body_battery, stress_score,
+                 sleep_deep_s, sleep_light_s, sleep_rem_s, sleep_awake_s,
+                 hrv_ms, resting_hr, steps,
+                 body_battery (day high), body_battery_low, stress_score,
+                 respiration_avg, spo2_avg, active_kcal, bmr_kcal,
+                 intensity_minutes_moderate, intensity_minutes_vigorous,
+                 training_readiness (0-100), vo2max (watch estimate),
                  energy_subjective (1-5), soreness_notes, notes, extras jsonb
 
 body_measurements user_id, measured_at, source, document_id?, fitness_test_id?,
@@ -384,7 +389,7 @@ All writes return the created record (with computed fields) so the agent can con
 
 ### 8.4 Garmin sync (nightly, automated — rescoped 2026-07-02)
 1. A **GitHub Actions scheduled job** (`apps/garmin-sync`, real Python — the Workers sandbox can't run `garminconnect`'s socket-based HTTP) authenticates against Garmin's unofficial API using a cached session token blob stored in Worker KV, fetched/updated via `/garmin/tokens`. Garmin credentials never leave Scott's machine: a one-time local `bootstrap` run (MFA-capable) seeds the tokens; nightly runs refresh them.
-2. The job pulls a trailing 7-day window (wellness: sleep/HRV/RHR/steps/body battery/stress; plus activity summaries) and POSTs the raw JSON to `/garmin/ingest` (shared-secret auth). **All mapping and reconciliation live in `@corpus/core`** (`import/garmin.ts`) — one write path, fully covered by PGlite tests.
+2. The job pulls a trailing 7-day window and POSTs the raw JSON to `/garmin/ingest` (shared-secret auth). Wellness spans `get_stats` (steps, RHR, body battery high/low, avg stress, active/BMR kcal, intensity minutes, waking respiration), the full sleep DTO (duration, score, deep/light/REM/awake stages, overnight SpO2/respiration), `get_hrv_data`, plus the device-dependent `get_training_readiness` and `get_max_metrics` (VO2 max / fitness age); activity summaries additionally carry training effect/load and running dynamics. **All mapping and reconciliation live in `@corpus/core`** (`import/garmin.ts`) — one write path, fully covered by PGlite tests. Backfill is re-running the pull: idempotent merges mean a widened schema repopulates the trailing window on the next (or a manual `--days N`) run.
 3. Reconciliation per §5.9: wellness merges into `daily_metrics` (measured wins, subjective preserved); activities key on `source_ref = garmin:<activityId>` — already-imported are skipped, same-day conversational sessions are **enriched in place** (HR/duration/calories filled, ref stamped) rather than duplicated, unmatched cardio creates a `garmin_export` session, and unmatched strength is deferred (per-set detail comes from conversational logging; the trailing window self-heals once logged).
 4. Failures are loud: the job exits non-zero → GitHub emails. The conversational check-in remains a permanent fallback, so Garmin breakage never blocks data entry.
 5. MacroFactor import: dropped (decision 8b).

@@ -27,10 +27,27 @@ const wellnessDay = {
     totalSteps: 9432,
     restingHeartRate: 47,
     bodyBatteryHighestValue: 92,
+    bodyBatteryLowestValue: 24,
     averageStressLevel: 31,
+    activeKilocalories: 731,
+    bmrKilocalories: 1680,
+    moderateIntensityMinutes: 45,
+    vigorousIntensityMinutes: 20,
+    avgWakingRespirationValue: 13.4,
   },
-  sleep: { sleepTimeSeconds: 25740, sleepScores: { overall: { value: 82 } } },
+  sleep: {
+    sleepTimeSeconds: 25740,
+    deepSleepSeconds: 5400,
+    lightSleepSeconds: 15000,
+    remSleepSeconds: 5340,
+    awakeSleepSeconds: 600,
+    averageSpO2Value: 95,
+    averageRespirationValue: 14.1,
+    sleepScores: { overall: { value: 82 } },
+  },
   hrv: { lastNightAvg: 58 },
+  trainingReadiness: { score: 74, level: "READY" },
+  maxMetrics: { generic: { vo2MaxValue: 48.0, fitnessAge: 33 } },
 };
 
 const runActivity = {
@@ -44,6 +61,10 @@ const runActivity = {
   maxHR: 171,
   calories: 512,
   elevationGain: 42.1,
+  aerobicTrainingEffect: 3.2,
+  anaerobicTrainingEffect: 0.4,
+  activityTrainingLoad: 118,
+  averageRunningCadenceInStepsPerMinute: 172,
 };
 
 const strengthActivity = {
@@ -68,6 +89,31 @@ describe("garminDayToCheckin", () => {
     expect(input!.sleepDuration).toEqual({ value: 25740, unit: "s" });
     expect(input!.sleepScore).toBe(82);
     expect(input!.hrvMs).toBe(58);
+  });
+
+  it("maps the extended wellness fields (stages, energy, readiness, vo2max)", () => {
+    const input = garminDayToCheckin(wellnessDay);
+    expect(input!.bodyBatteryLow).toBe(24);
+    expect(input!.activeKcal).toBe(731);
+    expect(input!.bmrKcal).toBe(1680);
+    expect(input!.intensityMinutesModerate).toBe(45);
+    expect(input!.intensityMinutesVigorous).toBe(20);
+    expect(input!.respirationAvg).toBe(13.4);
+    expect(input!.spo2Avg).toBe(95);
+    expect(input!.sleepDeep).toEqual({ value: 5400, unit: "s" });
+    expect(input!.sleepLight).toEqual({ value: 15000, unit: "s" });
+    expect(input!.sleepRem).toEqual({ value: 5340, unit: "s" });
+    expect(input!.sleepAwake).toEqual({ value: 600, unit: "s" });
+    expect(input!.trainingReadiness).toBe(74);
+    expect(input!.vo2max).toBe(48.0);
+  });
+
+  it("falls back to overnight respiration when waking value is absent", () => {
+    const input = garminDayToCheckin({
+      ...wellnessDay,
+      stats: { ...wellnessDay.stats, avgWakingRespirationValue: undefined },
+    });
+    expect(input!.respirationAvg).toBe(14.1); // sleep.averageRespirationValue
   });
 
   it("returns null for a day with no usable data (watch not worn)", () => {
@@ -102,6 +148,10 @@ describe("importGarminData — wellness", () => {
     expect(metrics?.sleepDurationS).toBe(25740); // Garmin's measured value won
     expect(metrics?.hrvMs).toBe(58);
     expect(metrics?.steps).toBe(9432);
+    expect(metrics?.sleepDeepS).toBe(5400); // extended fields persist
+    expect(metrics?.activeKcal).toBe(731);
+    expect(metrics?.trainingReadiness).toBe(74);
+    expect(metrics?.vo2max).toBe(48.0);
     expect(metrics?.energySubjective).toBe(4); // subjective preserved
     expect(metrics?.notes).toBe("felt rested");
   });
@@ -130,6 +180,13 @@ describe("importGarminData — activities", () => {
     expect(sessions[0]!.source).toBe("garmin_export");
     expect(sessions[0]!.title).toBe("Morning Run");
     expect(sessions[0]!.avgHr).toBe(152);
+    // Training effect/load + running dynamics land in session extras.
+    expect(sessions[0]!.extras).toMatchObject({
+      aerobicTrainingEffect: 3.2,
+      anaerobicTrainingEffect: 0.4,
+      trainingLoad: 118,
+      avgRunCadence: 172,
+    });
 
     const blocks = await db
       .select()

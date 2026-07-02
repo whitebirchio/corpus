@@ -242,11 +242,26 @@ export const dailyMetrics = pgTable(
     sleepDurationS: integer(),
     sleepScore: integer(),
     sleepQualitySubjective: integer(), // 1-5
+    // Garmin sleep-stage breakdown (seconds); sum ≈ sleep_duration_s + awake.
+    sleepDeepS: integer(),
+    sleepLightS: integer(),
+    sleepRemS: integer(),
+    sleepAwakeS: integer(),
     hrvMs: doublePrecision(),
     restingHr: integer(),
     steps: integer(),
-    bodyBattery: integer(),
+    bodyBattery: integer(), // day's highest Body Battery
+    bodyBatteryLow: integer(), // day's lowest — the drain tells the recovery story
     stressScore: integer(),
+    respirationAvg: doublePrecision(), // avg waking breaths/min
+    spo2Avg: integer(), // avg overnight pulse ox %
+    // Garmin energy expenditure (kcal): active = movement, bmr = resting.
+    activeKcal: integer(),
+    bmrKcal: integer(),
+    intensityMinutesModerate: integer(),
+    intensityMinutesVigorous: integer(),
+    trainingReadiness: integer(), // Garmin morning recovery score 0-100
+    vo2max: doublePrecision(), // watch-estimated; lab tests live in fitness_tests
     energySubjective: integer(), // 1-5
     sorenessNotes: text(),
     notes: text(),

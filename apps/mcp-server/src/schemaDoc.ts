@@ -12,7 +12,12 @@ Conventions:
 - Enums are lowercase strings as listed.
 
 ## Biometrics
-- daily_metrics(local_date UNIQUE/user, source, sleep_duration_s, sleep_score, sleep_quality_subjective 1-5, hrv_ms, resting_hr, steps, body_battery, stress_score, energy_subjective 1-5, soreness_notes, notes)
+- daily_metrics(local_date UNIQUE/user, source, sleep_duration_s, sleep_score, sleep_quality_subjective 1-5,
+    sleep_deep_s, sleep_light_s, sleep_rem_s, sleep_awake_s,
+    hrv_ms, resting_hr, steps, body_battery (day high), body_battery_low, stress_score,
+    respiration_avg (breaths/min), spo2_avg (%), active_kcal, bmr_kcal,
+    intensity_minutes_moderate, intensity_minutes_vigorous, training_readiness 0-100, vo2max (watch estimate),
+    energy_subjective 1-5, soreness_notes, notes)
 - body_measurements(measured_at, source, weight_kg, body_fat_pct, lean_mass_kg, fat_mass_kg, bone_mineral_content_kg, visceral_fat_kg, android_gynoid_ratio, almi, ffmi, bmd_total_gcm2, bmd_tscore, bmd_zscore, body_score, fitness_test_id)
 - body_composition_regions(measurement_id -> body_measurements.id, region: total|arm|leg|trunk|head|ribs|spine|pelvis|android|gynoid, side: left|right|both, lean_mass_kg, fat_mass_kg, fat_pct, bmd_gcm2, bmd_percentile)
 
