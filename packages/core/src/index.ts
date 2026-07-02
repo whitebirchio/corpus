@@ -16,4 +16,5 @@ export * from "./repos/regimen.js";
 export * from "./repos/goals.js";
 export * from "./repos/labs.js";
 export * from "./repos/summary.js";
+export * from "./import/garmin.js";
 export { MOVEMENT_SEED, seedMovements } from "./seed/movements.js";

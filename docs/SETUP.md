@@ -134,6 +134,50 @@ lower my cholesterol, given my labs?"* — Claude should reason over your real L
 2. They add the connector in their own Claude account and sign in with Google.
    RLS keeps all data separate. That's it.
 
+## 7. Garmin sync (optional — automated nightly biometrics)
+
+A GitHub Actions job pulls sleep, HRV, resting HR, steps, body battery,
+stress, and activity summaries from Garmin Connect every night and posts them
+to the worker (SPEC.md §8.4). One-time setup:
+
+1. **Create the shared secret** (any long random string):
+
+   ```sh
+   openssl rand -hex 32   # copy the output
+   cd apps/mcp-server && npx wrangler secret put GARMIN_INGEST_SECRET   # paste it
+   ```
+
+   Then add the same value as a repository Actions secret: GitHub → repo →
+   Settings → Secrets and variables → Actions → New repository secret →
+   name `CORPUS_INGEST_SECRET`.
+
+2. **Deploy** (the `/garmin/*` routes ship with the worker).
+
+3. **Bootstrap Garmin tokens locally** — the only step that touches your
+   Garmin password, and it never leaves your machine:
+
+   ```sh
+   cd apps/garmin-sync
+   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+   CORPUS_BASE_URL=https://corpus-mcp.whitebirch.workers.dev \
+   CORPUS_INGEST_SECRET=<the secret from step 1> \
+   CORPUS_USER_EMAIL=scott.schmalz@gmail.com \
+   .venv/bin/python sync.py bootstrap
+   ```
+
+   You'll be prompted for your Garmin email/password (and MFA code if
+   enabled). The resulting session tokens are stored in the worker's KV and
+   auto-refresh from then on.
+
+4. **Verify**: GitHub → Actions → `garmin-sync` → Run workflow. The log
+   prints an import summary (`days.updated`, `activities.created/enriched`).
+   Then ask Claude: *"what was my HRV last night?"*
+
+**When it breaks** (Garmin invalidates the session — it happens): GitHub
+emails you the workflow failure. Re-run step 3; the next pull backfills the
+missed window automatically. Morning check-ins keep working the whole time —
+the sync is a convenience layer, not the data path.
+
 ## Local development
 
 ```sh
@@ -141,6 +185,7 @@ lower my cholesterol, given my labs?"* — Claude should reason over your real L
 #   DATABASE_URL=postgres://...
 #   GOOGLE_CLIENT_ID=...
 #   GOOGLE_CLIENT_SECRET=...
+#   GARMIN_INGEST_SECRET=...   # only if testing /garmin/* locally
 npm run dev            # wrangler dev on http://localhost:8787
 npm test               # core test suite (in-memory Postgres via PGlite)
 npm run typecheck

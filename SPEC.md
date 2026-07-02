@@ -33,7 +33,8 @@ Corpus is a personal health & wellness tracking system. It stores exercise, nutr
 | 5 | Nutrition granularity | Hybrid: item-level when inferable, meal totals otherwise | Always item-level, totals-only |
 | 6 | Workout granularity | Modality-aware detail: per-set strength, distance/pace/HR runs, structured metcons | Session summaries |
 | 7 | Meds/supplements | Regimen + exceptions (assume adherence, log deviations) | Per-dose logging, static list |
-| 8 | Biometrics ingestion | Daily conversational check-in + periodic Garmin export imports | Unofficial Garmin API sync (rejected: flaky) |
+| 8 | Biometrics ingestion | Daily conversational check-in + **nightly automated Garmin pull via the unofficial API** (GitHub Actions job → worker ingest endpoint; revisited 2026-07-02 — check-in remains the always-available fallback) | Manual export imports (original choice; superseded — recurring friction); official Health API (individuals can't apply, program suspended); paid aggregators like Terra/Spike (B2B pricing, ≥$300/yr) |
+| 8b | MacroFactor import | Dropped (2026-07-02) — conversational `log_meal` covers nutrition entry and Scott may stop using MacroFactor | CSV export parser |
 | 9 | Hosting | Cloudflare Workers + Neon Postgres + R2 | Vercel, Fly.io, AWS |
 | 10 | MCP auth | OAuth 2.1 (PKCE + Dynamic Client Registration) via `workers-oauth-provider` | Bearer token / secret URL |
 
@@ -337,7 +338,7 @@ Design philosophy: a **small set of validated write tools** (the agent can't cor
 | `upsert_goal` / `update_goal_status` | Manage goals and priorities. |
 | `save_insight` / `archive_insight` | Durable agent conclusions. |
 | `create_document_upload` | Returns `document_id` + presigned R2 PUT URL for storing an original (§8.3). |
-| `import_export_file` | Registers an uploaded Garmin/MacroFactor export and triggers chunked parsing (§8.4). |
+| *(not an MCP tool)* `/garmin/ingest` | Worker HTTP endpoint (shared-secret auth) receiving the nightly Garmin sync payload; mapping/reconciliation in `@corpus/core` (§8.4). Replaced the planned `import_export_file` tool when imports went automated. |
 
 All writes return the created record (with computed fields) so the agent can confirm what was stored back to the user. All log tools accept a `date`/`occurred_at` override for late entry ("log yesterday's workout"). Every write is dedup-aware per §5.9 — natural-key upsert where identity is stable, agent-confirmed soft-match where it isn't — so no tool ever silently creates a duplicate.
 
@@ -381,10 +382,12 @@ All writes return the created record (with computed fields) so the agent can con
 3. On confirmation: `create_document_upload` → Scott stores the original via the presigned URL (one `curl`/browser upload from desktop; ergonomics improve in Phase 3) → `record_lab_panel` with `document_id`.
 4. Agent compares against prior panels and updates `insights` if warranted.
 
-### 8.4 Garmin / MacroFactor export import (periodic)
-1. Export from Garmin Connect / MacroFactor (CSV/FIT/ZIP) → upload via presigned URL.
-2. `import_export_file` parses **in the Worker** (deterministic code, not LLM) in chunked batches to respect CPU limits; reconciles with existing check-in rows (export wins on measured values, subjective fields preserved).
-3. Agent reports what was imported/merged/skipped.
+### 8.4 Garmin sync (nightly, automated — rescoped 2026-07-02)
+1. A **GitHub Actions scheduled job** (`apps/garmin-sync`, real Python — the Workers sandbox can't run `garminconnect`'s socket-based HTTP) authenticates against Garmin's unofficial API using a cached garth token blob stored in Worker KV, fetched/updated via `/garmin/tokens`. Garmin credentials never leave Scott's machine: a one-time local `bootstrap` run (MFA-capable) seeds the tokens; nightly runs refresh them.
+2. The job pulls a trailing 7-day window (wellness: sleep/HRV/RHR/steps/body battery/stress; plus activity summaries) and POSTs the raw JSON to `/garmin/ingest` (shared-secret auth). **All mapping and reconciliation live in `@corpus/core`** (`import/garmin.ts`) — one write path, fully covered by PGlite tests.
+3. Reconciliation per §5.9: wellness merges into `daily_metrics` (measured wins, subjective preserved); activities key on `source_ref = garmin:<activityId>` — already-imported are skipped, same-day conversational sessions are **enriched in place** (HR/duration/calories filled, ref stamped) rather than duplicated, unmatched cardio creates a `garmin_export` session, and unmatched strength is deferred (per-set detail comes from conversational logging; the trailing window self-heals once logged).
+4. Failures are loud: the job exits non-zero → GitHub emails. The conversational check-in remains a permanent fallback, so Garmin breakage never blocks data entry.
+5. MacroFactor import: dropped (decision 8b).
 
 ## 9. Multi-user path (later, cheap)
 
@@ -397,7 +400,7 @@ Add wife's email to the allowlist → she signs in via Google → `users` row cr
 | **0 — Scaffold** | npm workspaces, `@corpus/core` + `apps/mcp-server`, Drizzle + Neon, wrangler config, CI deploy, hello-world MCP tool reachable from Claude | Connector added in Claude; test tool responds |
 | **1 — Core loop** | Full schema + migrations + RLS; OAuth (Google upstream, allowlist); write tools: checkin, workout (all 3 modalities), meal, observation, regimen, goals; reads: `get_daily_summary`, `query_data`, schema resource; movement catalog seeded | A full real day (check-in, meals, workout, "what workout today?") runs end-to-end from the phone |
 | **2 — Baselines & documents** | R2 + `documents` + presigned upload; `record_lab_panel` / `record_fitness_test` + analyte dictionary; import actual baselines: Function Health panel, DexaFit/RMR/VO2 Max, current regimen, goals | Cholesterol question answerable against real lab data |
-| **3 — Imports & rhythm** | Garmin export parser (FIT/CSV), MacroFactor CSV parser, reconciliation; `insights`; MCP prompts (`morning_checkin`, `weekly_review`, …); upload-ergonomics pass | Weekly export import is a 2-minute routine; weekly review works |
+| **3 — Imports & rhythm** | Automated nightly Garmin sync (unofficial API via GitHub Actions → `/garmin/ingest`, §8.4) with reconciliation; ~~MacroFactor CSV parser~~ (dropped, decision 8b); MCP prompts (`morning_checkin`, `weekly_review`, …); upload-ergonomics pass | Garmin biometrics land nightly with zero manual steps; weekly review works |
 | **4 — Later / optional** | Scheduled Workers (cron) for proactive briefings (needs a push channel — e.g., email), custom agent app on `@corpus/core`, read-only dashboard, second user | — |
 
 ## 11. Risks & open questions
@@ -409,6 +412,7 @@ Add wife's email to the allowlist → she signs in via Google → `users` row cr
 5. **Schema evolution** — early logging will surface missing fields fast. `extras jsonb` absorbs surprises; Drizzle migrations keep changes cheap. Expect schema churn in weeks 1–4.
 6. **Claude connector behavior changes** — MCP + connectors are evolving quickly; transport (Streamable HTTP) and auth (OAuth 2.1 + DCR) follow the current spec, which is the most future-proof position available.
 7. **Wife onboarding needs her own Claude account** for connector use — acceptable; revisit if it becomes a blocker.
+8. **Unofficial Garmin API breakage** — Garmin can change the protocol or invalidate sessions without notice (it has before). Mitigations: failures are loud (GitHub Actions email), recovery is a one-command local re-bootstrap, the trailing-window pull backfills missed nights, and the conversational check-in keeps working regardless. Terms-of-service gray area accepted knowingly for personal single-account use.
 
 ## Appendix A — Sample report inventory
 

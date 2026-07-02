@@ -11,6 +11,7 @@
 import type { AuthRequest } from "@cloudflare/workers-oauth-provider";
 import { findOrCreateUser } from "@corpus/core";
 import { withAuthDb } from "../db.js";
+import { handleGarmin } from "../garmin.js";
 import { handleUpload } from "../upload.js";
 import type { GrantProps } from "../types.js";
 
@@ -124,6 +125,8 @@ export const GoogleHandler = {
     // authorization; it's single-use and short-lived.
     const upload = pathname.match(/^\/upload\/([A-Za-z0-9]+)$/);
     if (upload) return handleUpload(request, env, upload[1]!);
+    // Garmin sync job endpoints — shared-secret auth, not OAuth (SPEC.md §8.4).
+    if (pathname.startsWith("/garmin/")) return handleGarmin(request, env);
     if (pathname === "/") {
       return new Response("Corpus MCP server. Connect via an MCP client at /mcp.", {
         status: 200,

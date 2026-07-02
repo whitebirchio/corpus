@@ -47,4 +47,6 @@
   //   DATABASE_URL          — Neon connection string
   //   GOOGLE_CLIENT_ID      — Google OAuth client
   //   GOOGLE_CLIENT_SECRET
+  //   GARMIN_INGEST_SECRET  — shared secret for /garmin/* sync endpoints
+  //                           (mirror as a GitHub Actions secret; docs/SETUP.md §7)
 }
