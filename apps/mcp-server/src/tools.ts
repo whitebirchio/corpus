@@ -38,6 +38,8 @@ import {
   createDocument,
   createDocumentUploadShape,
   getLabHistory,
+  getMovementHistory,
+  getMovementHistoryShape,
   recordFitnessTest,
   recordFitnessTestShape,
   recordLabPanel,
@@ -418,6 +420,27 @@ export function registerTools(
     async ({ analyte }) => {
       try {
         return ok(await run((db, c) => getLabHistory(db, c, analyte)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "get_movement_history",
+    {
+      title: "Get movement history",
+      description:
+        "Per-set history for a named movement (oldest first), so you can answer questions like " +
+        "'what weight did I use for pause front squats last week?' or 'am I progressing on bench press?'. " +
+        "Returns each session it appeared in with the full set list: reps, load (kg + lb), RPE, warmup/failure flags. " +
+        "Use before planning a session to check recent loads, or after a session to verify what was logged. " +
+        "Movement names are matched flexibly (normalized, plural-insensitive, alias-aware).",
+      inputSchema: getMovementHistoryShape,
+    },
+    async ({ movement, days }) => {
+      try {
+        return ok(await run((db, c) => getMovementHistory(db, c, movement, days ?? 90)));
       } catch (e) {
         return err(e);
       }

@@ -325,3 +325,17 @@ export const getRecentWorkoutsShape = {
 export const getLabHistoryShape = {
   analyte: z.string().min(1).describe("Canonical analyte name, e.g. 'ldl_cholesterol'"),
 };
+
+export const getMovementHistoryShape = {
+  movement: z
+    .string()
+    .min(1)
+    .describe("Movement name as logged, e.g. 'pause front squat', 'bench press'"),
+  days: z
+    .number()
+    .int()
+    .min(1)
+    .max(365)
+    .optional()
+    .describe("Lookback window in days (default 90)"),
+};

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db, UserCtx } from "../src/db/client.js";
 import { normalizeMovementName, resolveMovement } from "../src/repos/movements.js";
-import { getRecentWorkouts, logWorkout, muscleGroupVolume } from "../src/repos/workouts.js";
+import { getMovementHistory, getRecentWorkouts, logWorkout, muscleGroupVolume } from "../src/repos/workouts.js";
 import { seedMovements } from "../src/seed/movements.js";
 import { createTestDb, createTestUser } from "./helpers.js";
 
@@ -218,6 +218,33 @@ describe("logWorkout", () => {
       ],
     });
     expect(lift.status).toBe("logged");
+  });
+
+  it("returns per-set detail for a named movement", async () => {
+    await logWorkout(db, ctx, strengthDay);
+    const result = await getMovementHistory(db, ctx, "bench press", 30, new Date("2026-07-02T12:00:00Z"));
+    expect(result.found).toBe(true);
+    expect(result.entries).toHaveLength(1);
+    const entry = result.entries[0]!;
+    expect(entry.date).toBe("2026-07-01");
+    expect(entry.sets).toHaveLength(4);
+    expect(entry.sets[0]!.reps).toBe(8);
+    expect(entry.sets[0]!.loadLb).toBeCloseTo(185, 0);
+    expect(entry.sets[3]!.isFailure).toBe(true);
+  });
+
+  it("returns found:false for a movement never logged", async () => {
+    const result = await getMovementHistory(db, ctx, "nordic curl", 90, new Date("2026-07-02T12:00:00Z"));
+    expect(result.found).toBe(false);
+    expect(result.entries).toHaveLength(0);
+  });
+
+  it("matches movement history case-insensitively", async () => {
+    await logWorkout(db, ctx, strengthDay);
+    // "Bench Press" and "BENCH PRESS" should both hit the stored "bench press"
+    const r = await getMovementHistory(db, ctx, "Bench Press", 30, new Date("2026-07-02T12:00:00Z"));
+    expect(r.found).toBe(true);
+    expect(r.entries).toHaveLength(1);
   });
 
   it("aggregates muscle-group volume for recent work", async () => {

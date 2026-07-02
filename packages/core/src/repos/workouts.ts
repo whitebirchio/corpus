@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { Db, UserCtx } from "../db/client.js";
 import {
   blockMovements,
@@ -9,7 +9,7 @@ import {
 } from "../db/schema.js";
 import type { LogWorkoutInput } from "../schemas/inputs.js";
 import { localDateOf, todayIn, zonedToUtc } from "../time.js";
-import { toKg, toMeters, toSeconds, toSecondsPerKm } from "../units.js";
+import { kgToLb, toKg, toMeters, toSeconds, toSecondsPerKm } from "../units.js";
 import { normalizeMovementName, resolveMovement } from "./movements.js";
 
 export type WorkoutSession = typeof workoutSessions.$inferSelect;
@@ -324,6 +324,109 @@ export async function getRecentWorkouts(
     });
   }
   return result;
+}
+
+export interface MovementHistorySet {
+  setNumber: number;
+  reps: number | null;
+  loadKg: number | null;
+  loadLb: number | null;
+  rpe: number | null;
+  isWarmup: boolean;
+  isFailure: boolean;
+  notes: string | null;
+}
+
+export interface MovementHistoryEntry {
+  date: string;
+  sessionTitle: string | null;
+  blockType: string;
+  prescription: string | null;
+  sets: MovementHistorySet[];
+}
+
+export interface MovementHistoryResult {
+  movement: string;
+  found: boolean;
+  entries: MovementHistoryEntry[];
+}
+
+/**
+ * Per-set history for a named movement over the trailing window.
+ * Returns oldest-first so callers can read progression top-to-bottom.
+ */
+export async function getMovementHistory(
+  db: Db,
+  ctx: UserCtx,
+  movementName: string,
+  days = 90,
+  now: Date = new Date(),
+): Promise<MovementHistoryResult> {
+  const normalized = normalizeMovementName(movementName);
+
+  // Look up without creating — same matching logic as resolveMovement.
+  const raw = (await db.execute(
+    sql`select id, name from movements
+        where ${normalized} = lower(name)
+           or ${normalized} = any(select lower(a) from unnest(aliases) as a)
+        limit 1`,
+  )) as unknown as { rows?: { id: string; name: string }[] } | { id: string; name: string }[];
+  const foundRows = Array.isArray(raw) ? raw : (raw.rows ?? []);
+  const found = foundRows[0];
+
+  if (!found) return { movement: normalized, found: false, entries: [] };
+
+  const since = new Date(now.getTime() - days * 24 * 3600 * 1000);
+  const sinceDate = localDateOf(since, ctx.timezone);
+
+  const bmRows = await db
+    .select({
+      bmId: blockMovements.id,
+      date: workoutSessions.localDate,
+      startedAt: workoutSessions.startedAt,
+      sessionTitle: workoutSessions.title,
+      blockType: workoutBlocks.blockType,
+      prescription: blockMovements.prescription,
+    })
+    .from(blockMovements)
+    .innerJoin(workoutBlocks, eq(blockMovements.blockId, workoutBlocks.id))
+    .innerJoin(workoutSessions, eq(workoutBlocks.sessionId, workoutSessions.id))
+    .where(
+      and(
+        eq(blockMovements.userId, ctx.userId),
+        eq(blockMovements.movementId, found.id),
+        gte(workoutSessions.localDate, sinceDate),
+      ),
+    )
+    .orderBy(asc(workoutSessions.localDate), asc(workoutSessions.startedAt));
+
+  const entries: MovementHistoryEntry[] = [];
+  for (const row of bmRows) {
+    const sets = await db
+      .select()
+      .from(strengthSets)
+      .where(eq(strengthSets.blockMovementId, row.bmId))
+      .orderBy(asc(strengthSets.setNumber));
+
+    entries.push({
+      date: row.date,
+      sessionTitle: row.sessionTitle,
+      blockType: row.blockType,
+      prescription: row.prescription,
+      sets: sets.map((s) => ({
+        setNumber: s.setNumber,
+        reps: s.reps ?? null,
+        loadKg: s.loadKg ?? null,
+        loadLb: s.loadKg != null ? Math.round(kgToLb(s.loadKg) * 10) / 10 : null,
+        rpe: s.rpe ?? null,
+        isWarmup: s.isWarmup,
+        isFailure: s.isFailure,
+        notes: s.notes ?? null,
+      })),
+    });
+  }
+
+  return { movement: found.name, found: true, entries };
 }
 
 /**
