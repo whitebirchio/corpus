@@ -122,9 +122,15 @@ export function registerTools(
     {
       title: "Log workout",
       description:
-        "Record a workout session as blocks (strength / run / metcon / warmup / ...). Strength blocks take per-set reps+load+RPE; " +
-        "runs take distance/duration/HR (pace derived); metcons take scheme (amrap/emom/for_time/...), movements with rep schemes and loads, and the result. " +
+        "Record a workout session as blocks (strength / run / metcon / warmup / ...). " +
+        "CRITICAL — where reps/weight go depends on the movement, and getting this wrong silently loses data: " +
+        "(1) Any movement done as SETS — every strength lift AND weighted accessories — MUST include a `sets` array, one entry per set with reps + unit-tagged load " +
+        "(e.g. front squat 5x5 @ 95lb => five sets of { reps: 5, load: {value: 95, unit: 'lb'} }; bodyweight sets omit load). " +
+        "(2) Only true METCON movements use block-level repsPerRound/load. (3) Runs take distance/duration/HR on the block (pace derived). " +
+        "Do NOT put a strength movement's reps/weight only in `prescription` — that text is a fallback, not structured data. " +
         "Movement names are resolved against the catalog — unknown ones are added unverified (supply category and primaryMuscles for new movements). " +
+        "If the result status is 'incomplete_movements', the listed strength/metcon movements had no reps/sets/load — ask the user for those numbers and re-call " +
+        "with proper `sets` (or allowIncomplete:true only if the user confirms there genuinely were none). " +
         DEDUP_NOTE,
       inputSchema: logWorkoutShape,
     },

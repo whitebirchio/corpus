@@ -86,11 +86,17 @@ export const blockMovementInput = z.object({
   prescription: z
     .string()
     .optional()
-    .describe("Verbatim scheme, e.g. '5x5 @ 185', '21-15-9'"),
-  sets: z.array(strengthSetInput).optional().describe("Per-set detail (strength blocks)"),
-  repsPerRound: z.number().int().positive().optional().describe("Metcon reps per round"),
-  load: massValue.optional().describe("Metcon working load"),
-  distancePerRound: distanceValue.optional(),
+    .describe("Verbatim scheme as a fallback, e.g. '5x5 @ 185', '21-15-9'. Prefer structured `sets` when reps/loads are known."),
+  sets: z
+    .array(strengthSetInput)
+    .optional()
+    .describe(
+      "REQUIRED for any movement performed as sets — strength AND weighted accessories. One entry per set with reps + load (unit-tagged). " +
+        "e.g. 3x10 at 20lb dumbbells => three sets each { reps: 10, load: { value: 20, unit: 'lb' } }. Bodyweight sets omit load.",
+    ),
+  repsPerRound: z.number().int().positive().optional().describe("METCON ONLY: reps per round"),
+  load: massValue.optional().describe("METCON ONLY: working load per round. For set-based work use `sets`, not this."),
+  distancePerRound: distanceValue.optional().describe("METCON ONLY: distance per round"),
 });
 
 export const workoutBlockInput = z.object({
@@ -138,6 +144,13 @@ export const logWorkoutShape = {
     .boolean()
     .optional()
     .describe("Set true ONLY after the user confirms a near-duplicate is intentional"),
+  allowIncomplete: z
+    .boolean()
+    .optional()
+    .describe(
+      "Set true ONLY after confirming with the user that a strength/metcon movement genuinely has no reps/weight to record. " +
+        "Otherwise leave unset so the tool can catch dropped set data.",
+    ),
 };
 export const logWorkoutInput = z.object(logWorkoutShape);
 export type LogWorkoutInput = z.infer<typeof logWorkoutInput>;

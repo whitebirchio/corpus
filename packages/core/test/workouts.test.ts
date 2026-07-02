@@ -121,6 +121,70 @@ describe("logWorkout", () => {
     expect(result.status).toBe("logged");
   });
 
+  it("refuses to silently drop a strength movement with no reps/sets/load", async () => {
+    const result = await logWorkout(db, ctx, {
+      date: "2026-07-05",
+      title: "Lower strength",
+      blocks: [
+        {
+          type: "strength" as const,
+          // The real-world bug: movement name only, no sets/prescription/load.
+          movements: [{ name: "pause front squat" }, { name: "no lockout back squat" }],
+        },
+      ],
+    });
+    expect(result.status).toBe("incomplete_movements");
+    if (result.status !== "incomplete_movements") return;
+    expect(result.incomplete.map((m) => m.movement)).toEqual([
+      "pause front squat",
+      "no lockout back squat",
+    ]);
+
+    // Nothing was written — no partial session left behind.
+    expect(await getRecentWorkouts(db, ctx, 30, new Date("2026-07-06T12:00:00Z"))).toHaveLength(0);
+  });
+
+  it("accepts the same movements once sets are supplied", async () => {
+    const result = await logWorkout(db, ctx, {
+      date: "2026-07-05",
+      blocks: [
+        {
+          type: "strength" as const,
+          movements: [
+            {
+              name: "pause front squat",
+              sets: [
+                { reps: 5, load: { value: 95, unit: "lb" as const } },
+                { reps: 5, load: { value: 95, unit: "lb" as const } },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(result.status).toBe("logged");
+  });
+
+  it("exempts bodyweight warmup/cooldown movements from the completeness check", async () => {
+    const result = await logWorkout(db, ctx, {
+      date: "2026-07-05",
+      blocks: [
+        { type: "warmup" as const, movements: [{ name: "world's greatest stretch" }] },
+        { type: "cooldown" as const, movements: [{ name: "pigeon pose" }] },
+      ],
+    });
+    expect(result.status).toBe("logged");
+  });
+
+  it("allows an explicit unquantified strength movement when the user confirms", async () => {
+    const result = await logWorkout(db, ctx, {
+      date: "2026-07-05",
+      allowIncomplete: true,
+      blocks: [{ type: "strength" as const, movements: [{ name: "sled push" }] }],
+    });
+    expect(result.status).toBe("logged");
+  });
+
   it("flags a same-day near-duplicate instead of inserting (§5.9 tier 3)", async () => {
     await logWorkout(db, ctx, strengthDay);
     const dup = await logWorkout(db, ctx, strengthDay);

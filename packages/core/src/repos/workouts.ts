@@ -29,9 +29,46 @@ export interface LoggedWorkout {
   createdMovements: string[]; // catalog additions needing review
 }
 
+export interface IncompleteMovement {
+  block: number;
+  blockType: string;
+  movement: string;
+}
+
 export type LogWorkoutResult =
   | { status: "logged"; workout: LoggedWorkout }
-  | { status: "possible_duplicate"; candidates: DuplicateCandidate[] };
+  | { status: "possible_duplicate"; candidates: DuplicateCandidate[] }
+  | { status: "incomplete_movements"; incomplete: IncompleteMovement[] };
+
+/** Block types whose movements must carry quantification (reps/sets/load). */
+const QUANTIFIED_BLOCK_TYPES = new Set(["strength", "metcon", "interval"]);
+
+/**
+ * Guard against silent data loss: a movement in a strength/metcon/interval
+ * block must carry SOME quantification — a `sets` array, a `prescription`, or
+ * a block-level reps/load/distance. A bare movement name means the reps and
+ * weight were dropped, which for a tracking system is the worst failure mode.
+ * Warmup/cooldown/mobility/run blocks are exempt (stretches carry no load; run
+ * detail lives on the block).
+ */
+function findIncompleteMovements(input: LogWorkoutInput): IncompleteMovement[] {
+  const incomplete: IncompleteMovement[] = [];
+  input.blocks.forEach((block, bi) => {
+    if (!QUANTIFIED_BLOCK_TYPES.has(block.type)) return;
+    for (const mv of block.movements ?? []) {
+      const quantified =
+        (mv.sets?.length ?? 0) > 0 ||
+        (mv.prescription != null && mv.prescription.trim() !== "") ||
+        mv.repsPerRound != null ||
+        mv.load != null ||
+        mv.distancePerRound != null;
+      if (!quantified) {
+        incomplete.push({ block: bi, blockType: block.type, movement: mv.name });
+      }
+    }
+  });
+  return incomplete;
+}
 
 /**
  * SPEC.md §5.9 tier 3: conversationally-logged workouts have no natural key,
@@ -50,6 +87,12 @@ export async function logWorkout(
     : input.date
       ? zonedToUtc(localDate, "12:00", ctx.timezone)
       : new Date();
+
+  // Fail fast on payloads that would silently drop reps/weights.
+  if (!input.allowIncomplete) {
+    const incomplete = findIncompleteMovements(input);
+    if (incomplete.length > 0) return { status: "incomplete_movements", incomplete };
+  }
 
   const inputMovementNames = (input.blocks ?? [])
     .flatMap((b) => b.movements ?? [])
