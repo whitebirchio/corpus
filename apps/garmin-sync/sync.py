@@ -8,7 +8,7 @@ Modes:
   bootstrap   First-time interactive login — run LOCALLY, never in CI. Garmin
               credentials are prompted (or read from GARMIN_EMAIL /
               GARMIN_PASSWORD env vars) and used once; only the resulting
-              garth token blob is uploaded to the worker's token store.
+              session token blob is uploaded to the worker's token store.
               Handles an MFA prompt if the account requires one.
   pull        Unattended sync (nightly GitHub Actions). Loads the token blob
               from the worker store, fetches the trailing window, posts it,
@@ -98,7 +98,7 @@ def bootstrap() -> None:
     password = os.getenv("GARMIN_PASSWORD") or getpass.getpass("Garmin account password: ")
     garmin = Garmin(email=email, password=password, prompt_mfa=lambda: input("Garmin MFA code: "))
     garmin.login()
-    put_stored_tokens(garmin.garth.dumps())
+    put_stored_tokens(garmin.client.dumps())
     print(f"Garmin tokens stored for {USER_EMAIL}. Nightly pulls can run unattended now.")
 
 
@@ -108,7 +108,7 @@ def pull(days: int) -> None:
         sys.exit("No stored Garmin tokens — run `python sync.py bootstrap` locally first.")
 
     garmin = Garmin()
-    garmin.login(blob)  # base64 garth blob; auto-refreshes as needed
+    garmin.login(tokenstore=blob)  # JSON token blob; proactively refreshes if stale
 
     today = datetime.now(ZoneInfo(TIMEZONE)).date()
     day_payloads = []
@@ -150,8 +150,8 @@ def pull(days: int) -> None:
         sys.exit(f"Ingest failed ({r.status_code}): {r.text}")
     print(json.dumps(r.json(), indent=2))
 
-    # Persist whatever garth refreshed so the next run starts warm.
-    put_stored_tokens(garmin.garth.dumps())
+    # Persist whatever got refreshed so the next run starts warm.
+    put_stored_tokens(garmin.client.dumps())
 
     if errors:
         print("\nPer-day fetch warnings (data will self-heal on the next run):", file=sys.stderr)

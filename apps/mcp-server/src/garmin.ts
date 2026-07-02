@@ -4,7 +4,7 @@
  * shared secret (GARMIN_INGEST_SECRET, a Worker secret mirrored in the repo's
  * Actions secrets).
  *
- *   GET  /garmin/tokens?user=<email>  → stored garth token blob (or null)
+ *   GET  /garmin/tokens?user=<email>  → stored session token blob (or null)
  *   PUT  /garmin/tokens?user=<email>  → store/rotate the token blob
  *   POST /garmin/ingest               → { userEmail, days, activities } →
  *                                       import summary
@@ -12,7 +12,7 @@
  * The token store lets the stateless Actions runner reuse Garmin's refreshed
  * session across runs — only the very first login (or a revoked refresh
  * token) needs Scott's interactive bootstrap. Garmin credentials themselves
- * never touch this worker; only garth's token blob does.
+ * never touch this worker; only the client's serialized token JSON does.
  */
 import { findOrCreateUser, garminIngestPayload, importGarminData } from "@corpus/core";
 import { withAuthDb, withUserDb } from "./db.js";
