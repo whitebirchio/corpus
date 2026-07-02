@@ -1,0 +1,25 @@
+{
+  "name": "corpus-mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Corpus remote MCP server — Cloudflare Worker.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.8.1",
+    "@corpus/core": "*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@neondatabase/serverless": "^1.1.0",
+    "agents": "^0.17.3",
+    "drizzle-orm": "^0.45.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "wrangler": "^4.106.0"
+  }
+}

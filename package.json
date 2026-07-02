@@ -1,0 +1,31 @@
+{
+  "name": "corpus",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Corpus — personal health & wellness tracking, AI-agent-first via MCP.",
+  "homepage": "https://github.com/whitebirchio/corpus#readme",
+  "bugs": {
+    "url": "https://github.com/whitebirchio/corpus/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/whitebirchio/corpus.git"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "dev": "npm run dev -w corpus-mcp-server",
+    "deploy": "npm run deploy -w corpus-mcp-server",
+    "db:generate": "npm run db:generate -w @corpus/core"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}

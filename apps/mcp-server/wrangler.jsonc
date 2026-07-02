@@ -1,0 +1,43 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "corpus-mcp",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-06-01",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	// McpAgent sessions live in a SQLite-backed Durable Object (free tier OK).
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": [
+				"CorpusMcpAgent"
+			]
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "MCP_OBJECT",
+				"class_name": "CorpusMcpAgent"
+			}
+		]
+	},
+	// workers-oauth-provider persists clients/grants/tokens here.
+	// Create with: npx wrangler kv namespace create OAUTH_KV  → paste id below.
+	"kv_namespaces": [
+		{
+			"binding": "OAUTH_KV",
+			"id": "999f4a655d494cb58872c2d05b3745cf"
+		}
+	],
+	"vars": {
+		// Comma-separated allowlist — the only emails that can sign in.
+		"ALLOWED_EMAILS": "scott.schmalz@gmail.com",
+		"DEFAULT_TIMEZONE": "America/New_York"
+	}
+	// Secrets (npx wrangler secret put <NAME>):
+	//   DATABASE_URL          — Neon connection string
+	//   GOOGLE_CLIENT_ID      — Google OAuth client
+	//   GOOGLE_CLIENT_SECRET
+}
