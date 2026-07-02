@@ -12,7 +12,7 @@ name: garmin-sync
 
 on:
   schedule:
-    - cron: "30 11 * * *" # 06:30/07:30 America/New_York depending on DST
+    - cron: "30 09 * * *" # 05:30/06:30 America/New_York depending on DST
   workflow_dispatch:
     inputs:
       days:
