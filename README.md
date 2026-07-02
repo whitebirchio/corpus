@@ -22,7 +22,8 @@ Runs at ~$0/month on Cloudflare + Neon free tiers.
 ## Getting started
 
 See **[docs/SETUP.md](docs/SETUP.md)** for one-time account setup
-(Neon, Google OAuth, Cloudflare, Claude connector).
+(Neon, Google OAuth, Cloudflare, Claude connector), and
+**[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** for the local dev workflow.
 
 ```sh
 npm install
@@ -34,6 +35,15 @@ npm run deploy         # deploy to Cloudflare
 
 ## Status
 
-Phase 1 (core daily loop) implemented: check-ins, workouts, meals, regimen,
-goals, insights, daily summary, and read-only SQL analysis. Phase 2 (documents,
-labs, baseline imports) is next — see SPEC.md §10.
+Phases 1–2 implemented:
+
+- **Phase 1 — core daily loop:** check-ins, workouts, meals, regimen, goals,
+  insights, daily summary, read-only SQL analysis.
+- **Phase 2 — baselines & documents:** `record_lab_panel` (with a ~90-analyte
+  canonical dictionary and censored/qualitative value handling),
+  `record_fitness_test` (VO2 max / RMR / DEXA, with DEXA fan-out to body
+  composition + regional detail), `get_lab_history`, and optional original-file
+  storage in R2 via a credential-free worker upload route.
+
+Phase 3 (Garmin/MacroFactor importers, MCP prompts, proactive briefings) is
+next — see SPEC.md §10.

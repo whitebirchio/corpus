@@ -59,10 +59,12 @@ Claude apps.
    cd apps/mcp-server
    npx wrangler login
    npx wrangler kv namespace create OAUTH_KV
+   npx wrangler r2 bucket create corpus-docs     # stores original lab/test files
    ```
 
 2. Paste the returned KV namespace `id` into `wrangler.jsonc` (replacing
-   `REPLACE_WITH_KV_NAMESPACE_ID`).
+   `REPLACE_WITH_KV_NAMESPACE_ID`). The R2 bucket needs no id — it's bound by
+   name (`corpus-docs`) and requires no access keys or secrets.
 3. Set secrets:
 
    ```sh
@@ -80,6 +82,12 @@ Claude apps.
    Note the deployed URL (`https://corpus-mcp.<subdomain>.workers.dev`) and make
    sure the Google redirect URI from step 2.2 matches `<url>/callback`.
 
+5. (Optional — only for archiving original documents.) Set `PUBLIC_BASE_URL` in
+   `wrangler.jsonc` vars to your deployed URL (e.g.
+   `https://corpus-mcp.<subdomain>.workers.dev`) and redeploy. This lets
+   `create_document_upload` hand you a working upload command. Lab/test *data*
+   import works fine without it — skip unless you want to keep the source files.
+
 ## 4. CI deploys (optional but recommended)
 
 1. Create a Cloudflare API token (dash → My Profile → API Tokens →
@@ -95,6 +103,30 @@ Claude apps.
    Google sign-in, and your email allowlist (in `wrangler.jsonc` vars) is the gate.
 4. Smoke test in a chat: *"Use the get_daily_summary tool"* — an empty-but-valid
    summary means the whole path (OAuth → DO → Neon RLS) works.
+
+## 5b. Import your baselines (Phase 2)
+
+Once connected, seed the system with your current baselines by chatting with
+Claude — no forms, no CSVs. The agent parses the document in-context and calls
+the write tools.
+
+- **Lab panels** (Function Health, PCP): attach the PDF and say *"import this lab
+  panel into Corpus."* Claude extracts the results, canonicalizes analyte names,
+  and calls `record_lab_panel`. Re-importing the same PDF is safe — it dedups on
+  the accession number.
+- **DEXA / VO2 max / RMR**: attach the DexaFit report and say *"import this."*
+  Claude calls `record_fitness_test`; a DEXA also populates your body-composition
+  timeline (whole-body + per-region).
+- **Regimen & goals**: just tell Claude your current medications/supplements and
+  what you're training toward; it calls `upsert_regimen_item` and `upsert_goal`.
+- **Keeping originals (optional):** if you configured `PUBLIC_BASE_URL` (step
+  3.5), ask Claude to *"keep the original file too"* — it returns a one-line
+  `curl` command you run from your computer to archive the PDF, linked to the
+  extracted data.
+
+**Exit check:** with a lipid panel imported, ask *"what foods should I eat to
+lower my cholesterol, given my labs?"* — Claude should reason over your real LDL
+/ ApoB values.
 
 ## 6. Adding a second user later
 

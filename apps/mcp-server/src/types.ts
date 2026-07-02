@@ -15,6 +15,14 @@ declare global {
   }
 }
 
+/** Payload stored in KV for a one-time document upload token. */
+export interface UploadTicket {
+  documentId: string;
+  userId: string;
+  r2Key: string;
+  contentType: string;
+}
+
 /** Per-grant props set at authorization time; McpAgent receives them as this.props. */
 export interface GrantProps extends Record<string, unknown> {
   userId: string;

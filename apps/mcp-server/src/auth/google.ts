@@ -11,6 +11,7 @@
 import type { AuthRequest } from "@cloudflare/workers-oauth-provider";
 import { findOrCreateUser } from "@corpus/core";
 import { withAuthDb } from "../db.js";
+import { handleUpload } from "../upload.js";
 import type { GrantProps } from "../types.js";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -119,6 +120,10 @@ export const GoogleHandler = {
     const { pathname } = new URL(request.url);
     if (pathname === "/authorize") return handleAuthorize(request, env);
     if (pathname === "/callback") return handleCallback(request, env);
+    // Token-gated original-document upload (SPEC.md §8.3). The token is the
+    // authorization; it's single-use and short-lived.
+    const upload = pathname.match(/^\/upload\/([A-Za-z0-9]+)$/);
+    if (upload) return handleUpload(request, env, upload[1]!);
     if (pathname === "/") {
       return new Response("Corpus MCP server. Connect via an MCP client at /mcp.", {
         status: 200,

@@ -35,10 +35,19 @@ import {
   upsertGoalShape,
   upsertRegimenItem,
   upsertRegimenItemShape,
+  createDocument,
+  createDocumentUploadShape,
+  getLabHistory,
+  recordFitnessTest,
+  recordFitnessTestShape,
+  recordLabPanel,
+  recordLabPanelShape,
+  ANALYTES,
   type UserCtx,
 } from "@corpus/core";
 import { queryData, withUserDb } from "./db.js";
 import { SCHEMA_DOC } from "./schemaDoc.js";
+import { issueUploadToken, uploadUrlFor, UPLOAD_TTL_SECONDS } from "./upload.js";
 import type { GrantProps } from "./types.js";
 
 type ToolResult = {
@@ -392,6 +401,114 @@ export function registerTools(
   );
 
   server.registerTool(
+    "get_lab_history",
+    {
+      title: "Get lab history",
+      description:
+        "Every recorded value for one analyte over time (oldest first), with units, flags, and reference bounds. " +
+        "Use the canonical name (e.g. 'ldl_cholesterol'); see the corpus://analytes resource.",
+      inputSchema: { analyte: z.string().min(1).describe("Canonical analyte, e.g. 'ldl_cholesterol'") },
+    },
+    async ({ analyte }) => {
+      try {
+        return ok(await run((db, c) => getLabHistory(db, c, analyte)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  // --- labs, tests & documents (Phase 2) ------------------------------------
+
+  server.registerTool(
+    "record_lab_panel",
+    {
+      title: "Record lab panel",
+      description:
+        "Record a blood/urine lab panel and its results, extracted from a report. Provide each result's value VERBATIM " +
+        "as printed ('168', '<10', 'NEGATIVE') — the server parses number/comparator and canonicalizes analyte names " +
+        "(map to canonical snake_case when you can; see corpus://analytes). Idempotent: re-importing the same panel " +
+        "(matched by accession number, else source+date+lab) updates rather than duplicates, and reports any changed values.",
+      inputSchema: recordLabPanelShape,
+    },
+    async (input) => {
+      try {
+        return ok(await run((db, c) => recordLabPanel(db, c, input)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "record_fitness_test",
+    {
+      title: "Record fitness test",
+      description:
+        "Record a VO2 max, RMR, or DEXA result. Put the headline number in primaryValue; test-type-specific detail in " +
+        "results (see corpus://schema for the shape per type). For DEXA, also pass bodyComposition — it fans out to body " +
+        "measurements and per-region detail on the same timeline as weigh-ins. Idempotent by (test type, date). " +
+        "Mass fields are unit-tagged; the server converts.",
+      inputSchema: recordFitnessTestShape,
+    },
+    async (input) => {
+      try {
+        return ok(await run((db, c) => recordFitnessTest(db, c, input)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "create_document_upload",
+    {
+      title: "Create document upload",
+      description:
+        "OPTIONAL — keep the original file (lab PDF, DEXA report, meal photo) alongside the extracted data. Creates a " +
+        "document record and returns a one-time upload command; pass the returned documentId to record_lab_panel / " +
+        "record_fitness_test to link them. The user runs the upload from their computer. Skip this if they don't want " +
+        "to archive the original; the extracted data stands on its own.",
+      inputSchema: createDocumentUploadShape,
+    },
+    async (input) => {
+      try {
+        const c = ctx();
+        const doc = await withUserDb(env, c.userId, (db) => createDocument(db, c, input));
+        const token = await issueUploadToken(env, {
+          documentId: doc.id,
+          userId: c.userId,
+          r2Key: doc.r2Key,
+          contentType: input.contentType,
+        });
+        const url = uploadUrlFor(env, token);
+        const expiresMinutes = Math.round(UPLOAD_TTL_SECONDS / 60);
+        return ok({
+          documentId: doc.id,
+          filename: doc.filename,
+          ...(url
+            ? {
+                uploadUrl: url,
+                expiresInMinutes: expiresMinutes,
+                uploadCommand: `curl -X PUT --data-binary @"${input.filename}" -H "Content-Type: ${input.contentType}" "${url}"`,
+                instructions:
+                  `Run the uploadCommand from the folder containing the file within ${expiresMinutes} minutes. ` +
+                  "Then pass documentId to record_lab_panel or record_fitness_test to link the original.",
+              }
+            : {
+                note:
+                  "PUBLIC_BASE_URL is not set on the worker, so no upload URL could be generated. " +
+                  "The document record was created and can still be linked, but the original file cannot be uploaded " +
+                  "until PUBLIC_BASE_URL is configured (see docs/SETUP.md).",
+              }),
+        });
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
     "query_data",
     {
       title: "Query data (read-only SQL)",
@@ -428,5 +545,31 @@ export function registerTools(
     async (uri) => ({
       contents: [{ uri: uri.href, mimeType: "text/markdown", text: SCHEMA_DOC }],
     }),
+  );
+
+  server.registerResource(
+    "analytes",
+    "corpus://analytes",
+    {
+      title: "Canonical analyte dictionary",
+      description:
+        "Canonical snake_case analyte names, categories, and preferred units for record_lab_panel and get_lab_history. " +
+        "Map printed lab names to these; analytes not listed here are still accepted.",
+      mimeType: "text/markdown",
+    },
+    async (uri) => {
+      const byCategory = new Map<string, string[]>();
+      for (const a of ANALYTES) {
+        const line = `- \`${a.canonical}\` — ${a.display}${a.unit ? ` (${a.unit})` : ""}`;
+        const list = byCategory.get(a.category) ?? [];
+        list.push(line);
+        byCategory.set(a.category, list);
+      }
+      let text = "# Canonical analytes\n\nMap printed lab names to these canonical keys.\n";
+      for (const [category, lines] of byCategory) {
+        text += `\n## ${category}\n${lines.join("\n")}\n`;
+      }
+      return { contents: [{ uri: uri.href, mimeType: "text/markdown", text }] };
+    },
   );
 }
