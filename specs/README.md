@@ -7,7 +7,7 @@ This is different from [`docs/`](../docs/): `docs/` is evergreen how-to (one-tim
 ## Epics
 
 1. [Initial platform](01-initial-platform/SPEC.md) — core data model, MCP server (tools/resources/prompts), auth, nightly Garmin sync. Shipped through Phase 3, minus upload ergonomics (see backlog below).
-2. [PWA client](02-pwa-client/SPEC.md) — a progressive web app as a complementary, glanceable interface onto the same system/data (a first-party REST adapter over `@corpus/core`, reusing identity + RLS). Design complete 2026-07-02 (Vite+React SPA + Hono in one `apps/web` worker, first-party rolling session); read-only v1 scoped, built write-forward.
+2. [PWA client](02-pwa-client/SPEC.md) — a progressive web app as a complementary, glanceable interface onto the same system/data (a first-party REST adapter over `@corpus/core`, reusing identity + RLS). Design complete 2026-07-02 (Vite+React SPA + Hono in one `apps/web` worker, first-party rolling session); read-only v1 built write-forward 2026-07-03 — see [implementation notes](02-pwa-client/IMPLEMENTATION.md) and [follow-ups](02-pwa-client/FOLLOWUPS.md) (a few one-time account steps remain before first use).
 
 ## Backlog — not yet scoped into an epic
 

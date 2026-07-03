@@ -20,9 +20,17 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - name: Deploy worker
+      - name: Deploy MCP worker
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: apps/mcp-server
+          command: deploy
+      - name: Build web app
+        run: npm run build -w corpus-web
+      - name: Deploy web worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: apps/web
           command: deploy

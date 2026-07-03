@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Corpus is a personal health-tracking system (workouts, nutrition, meds/supplements, labs, biometrics, goals) that is **AI-agent-first**: there is no UI. The product surface is a remote MCP server that Claude connects to as a custom connector, so "features" are MCP tools/resources/prompts, and daily interaction (both data entry and analysis) happens conversationally.
+Corpus is a personal health-tracking system (workouts, nutrition, meds/supplements, labs, biometrics, goals) that is **AI-agent-first**: the primary product surface is a remote MCP server that Claude connects to as a custom connector, so "features" are MCP tools/resources/prompts, and daily interaction (both data entry and analysis) happens conversationally. A read-only **PWA dashboard** (`apps/web`, epic 2) is a complementary, glanceable second interface over the same core — never a PWA-only capability.
 
 ## Commands
 
@@ -29,13 +29,18 @@ npm run db:seed -w @corpus/core        # seed movement catalog
 # Worker (apps/mcp-server), Layer 3+:
 npm run dev                            # wrangler dev on :8787 (needs apps/mcp-server/.dev.vars)
 npm run deploy                         # deploy to Cloudflare (or just push to main; CI deploys)
+
+# PWA (apps/web) — REST adapter + React SPA in one worker:
+npm run dev:web                        # vite build + wrangler dev on :8788 (needs apps/web/.dev.vars)
+npm run dev:ui -w corpus-web           # Vite HMR on :5173, proxying /api + /auth to :8788
+npm run deploy:web                     # deploy corpus-app (CI also deploys on main)
 ```
 
 Driving the local worker's OAuth-gated `/mcp` endpoint: `npx @modelcontextprotocol/inspector` (Transport "Streamable HTTP", URL `http://localhost:8787/mcp`). See `docs/DEVELOPMENT.md` for the full 4-layer workflow and Neon dev-branch setup; `docs/SETUP.md` for one-time account setup.
 
 ## Architecture
 
-**Hexagonal core + thin adapter.** All domain logic lives in `packages/core` (`@corpus/core`) — Drizzle schema, Zod schemas, unit conversion, timezone math, and the repository layer with dedup/upsert semantics. It has **no MCP or HTTP dependencies** and runs against any Postgres. `apps/mcp-server` is a Cloudflare Worker that is a thin adapter over it; `apps/garmin-sync` is a Python GitHub Actions job. When adding a capability, the logic and its tests belong in core; the tool wrapper in the worker should stay a thin validate → call-repo → echo-result shell.
+**Hexagonal core + thin adapters.** All domain logic lives in `packages/core` (`@corpus/core`) — Drizzle schema, Zod schemas, unit conversion, timezone math, and the repository layer with dedup/upsert semantics. It has **no MCP or HTTP dependencies** and runs against any Postgres. `apps/mcp-server` is a Cloudflare Worker that is a thin MCP adapter over it; `apps/web` is a second worker that is a thin REST adapter (Hono) plus the static PWA bundle (Vite + React, same origin, first-party session cookie — see `specs/02-pwa-client/`); `apps/garmin-sync` is a Python GitHub Actions job. When adding a capability, the logic and its tests belong in core; the tool/route wrapper in a worker should stay a thin validate → call-repo → echo-result shell.
 
 **Request path (worker):** `apps/mcp-server/src/index.ts` wires `OAuthProvider` (OAuth 2.1 authz server facing Claude + router). `/mcp` → `CorpusMcpAgent` (a per-session Durable Object, `mcp.ts`) which registers tools (`tools.ts`), resources (`schemaDoc.ts`, `profile.ts`), and prompts (`prompts.ts`). Everything else → Google login handler (`auth/google.ts`), gated by a hard **email allowlist**.
 

@@ -178,6 +178,31 @@ emails you the workflow failure. Re-run step 3; the next pull backfills the
 missed window automatically. Morning check-ins keep working the whole time —
 the sync is a convenience layer, not the data path.
 
+## 8. PWA (optional — the glanceable dashboard)
+
+The web app (specs/02-pwa-client) is a second worker, `corpus-app`, deployed by
+the same CI. One-time setup:
+
+1. **Google redirect URI** — on the *same* OAuth client from step 2, add:
+   `https://corpus-app.<your-subdomain>.workers.dev/auth/callback`
+   (plus `http://localhost:8788/auth/callback` if you want local sign-in).
+2. **Secrets:**
+
+   ```sh
+   cd apps/web
+   npx wrangler secret put DATABASE_URL          # same corpus_app connection string
+   npx wrangler secret put GOOGLE_CLIENT_ID
+   npx wrangler secret put GOOGLE_CLIENT_SECRET
+   npx wrangler secret put SESSION_SECRET        # openssl rand -base64 32
+   ```
+
+   `SESSION_SECRET` signs the 90-day rolling session cookie; rotating it signs
+   every device out.
+3. **Deploy**: push to `main` (CI deploys both workers) or
+   `npm run deploy -w corpus-web`.
+4. **Install on the phone**: open the URL in Safari → Share → **Add to Home
+   Screen**. Sign in once; the session refreshes itself on each visit.
+
 ## Local development
 
 ```sh

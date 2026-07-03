@@ -91,6 +91,21 @@ Notes:
 - The Neon serverless driver talks over fetch/WebSocket, which works from
   Miniflare — same transport as production.
 
+**The PWA worker** (`apps/web`) works the same way on its own port:
+
+```sh
+npm run dev -w corpus-web               # vite build + wrangler dev on :8788
+npm run dev:ui -w corpus-web            # optional: Vite HMR on :5173, proxying
+                                        # /api + /auth to :8788
+```
+
+Local secrets go in `apps/web/.dev.vars` (gitignored): `DATABASE_URL` (Neon dev
+branch), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SESSION_SECRET` (any
+string locally). For local sign-in, add `http://localhost:8788/auth/callback`
+as a redirect URI on the Google client. The REST surface is plain
+cookie-authed HTTP, so after signing in once in a browser you can poke it with
+the browser's fetch console — no MCP Inspector needed.
+
 ## Layer 4 — Deploy
 
 ```sh
