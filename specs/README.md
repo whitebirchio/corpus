@@ -7,7 +7,7 @@ This is different from [`docs/`](../docs/): `docs/` is evergreen how-to (one-tim
 ## Epics
 
 1. [Initial platform](01-initial-platform/SPEC.md) — core data model, MCP server (tools/resources/prompts), auth, nightly Garmin sync. Shipped through Phase 3, minus upload ergonomics (see backlog below).
-2. [Web / iOS clients](02-web-ios-clients/SPEC.md) — exploring a web app and/or iOS app as an additional interface into the same system/data. Exploration started 2026-07-02; no design decisions yet.
+2. [PWA client](02-pwa-client/SPEC.md) — a progressive web app as a complementary, glanceable interface onto the same system/data (a first-party REST adapter over `@corpus/core`, reusing identity + RLS). Design complete 2026-07-02 (Vite+React SPA + Hono in one `apps/web` worker, first-party rolling session); read-only v1 scoped, built write-forward.
 
 ## Backlog — not yet scoped into an epic
 
@@ -15,5 +15,4 @@ Carried over from epic 1's old Phase 3/4 roadmap. These become their own epic (o
 
 - **Upload-ergonomics pass** — presigned-URL upload is clunky from a phone; needs a tiny authenticated upload page or MCP file passthrough (if/when Claude clients support it).
 - **Scheduled proactive briefings** — Workers cron for daily/weekly check-ins, needs a push channel (e.g. email) since Corpus has no notification surface today.
-- **Read-only dashboard** — a non-conversational view onto the same data. May end up folding into the web-client epic rather than staying separate.
 - **Second user (wife) onboarding** — add her email to the OAuth allowlist; RLS already keeps data separate, so this is mostly just doing it.
