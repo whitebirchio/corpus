@@ -19,7 +19,9 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "dev": "npm run dev -w corpus-mcp-server",
+    "dev:web": "npm run dev -w corpus-web",
     "deploy": "npm run deploy -w corpus-mcp-server",
+    "deploy:web": "npm run deploy -w corpus-web",
     "db:generate": "npm run db:generate -w @corpus/core"
   },
   "engines": {

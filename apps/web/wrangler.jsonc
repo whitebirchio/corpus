@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "corpus-app",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // The built SPA (vite build → dist/client) rides Workers Static Assets:
+  // asset requests are free and never touch the worker. Only /api/* and
+  // /auth/* invoke the worker (specs/02-pwa-client/SPEC.md §2 #12/#13).
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/auth/*"],
+  },
+  // mcp-server dev owns :8787; the PWA dev stack lives on :8788.
+  "dev": {
+    "port": 8788,
+  },
+  "vars": {
+    // Comma-separated allowlist — the only emails that can sign in. Checked
+    // at login AND on every API request (removal locks existing sessions out).
+    "ALLOWED_EMAILS": "scott.schmalz@gmail.com",
+    "DEFAULT_TIMEZONE": "America/New_York",
+  },
+  // Secrets (npx wrangler secret put <NAME>), see specs/02-pwa-client/FOLLOWUPS.md:
+  //   DATABASE_URL          — Neon connection string (same DB as the MCP worker)
+  //   GOOGLE_CLIENT_ID      — existing Google OAuth client; add this worker's
+  //   GOOGLE_CLIENT_SECRET    /auth/callback as an authorized redirect URI
+  //   SESSION_SECRET        — HMAC key for the session cookie (openssl rand -base64 32);
+  //                           rotating it signs everyone out
+}

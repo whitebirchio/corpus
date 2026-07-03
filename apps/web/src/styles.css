@@ -1,0 +1,563 @@
+/* Corpus PWA — mobile-first, light/dark from one token set.
+   Color roles follow the dataviz reference palette; chart marks read
+   --series-* so both modes swap in one place. */
+
+:root {
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-muted: #898781;
+  --hairline: #e1e0d9;
+  --baseline: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+  --series-1: #2a78d6; /* blue */
+  --series-2: #1baf7a; /* aqua */
+  --series-1-track: #cde2fb; /* blue 100 — meter track, same ramp */
+  --accent: #2a78d6;
+  --danger: #d03b3b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-muted: #898781;
+    --hairline: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+    --series-1: #3987e5;
+    --series-2: #199e70;
+    --series-1-track: #0d366b; /* blue 700 */
+    --accent: #3987e5;
+    --danger: #e66767;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+#root {
+  max-width: 640px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- app chrome ----------------------------------------------------------- */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px 10px;
+  background: color-mix(in srgb, var(--page) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.app-title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.app-header .subtle-button {
+  font-size: 13px;
+  color: var(--ink-2);
+  background: none;
+  border: none;
+  padding: 6px 0 6px 12px;
+  cursor: pointer;
+}
+
+.app-main {
+  flex: 1;
+  padding: 16px 16px calc(env(safe-area-inset-bottom) + 76px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px calc(env(safe-area-inset-bottom) + 8px);
+  background: color-mix(in srgb, var(--page) 92%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--hairline);
+}
+
+.tab-bar button {
+  flex: 1;
+  max-width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  background: none;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.tab-bar button.active {
+  color: var(--accent);
+}
+
+.tab-bar svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* --- cards & tiles ---------------------------------------------------------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.card h2 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.stale {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+.hero-value {
+  font-size: 48px;
+  font-weight: 650;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.hero-caption {
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-top: 2px;
+}
+
+.tile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.stat-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.stat-tile .label {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.stat-tile .value {
+  font-size: 22px;
+  font-weight: 650;
+  margin-top: 2px;
+}
+
+.stat-tile .value small {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+
+/* --- meters ----------------------------------------------------------------- */
+
+.meter {
+  margin-top: 10px;
+}
+
+.meter .meter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  margin-bottom: 5px;
+}
+
+.meter .meter-head .name {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.meter .meter-head .nums {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.meter .meter-head .nums strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.meter .track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--series-1-track);
+  overflow: hidden;
+}
+
+.meter .fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--series-1);
+  transition: width 0.25s ease-out;
+}
+
+/* --- meal list ---------------------------------------------------------------- */
+
+.meal-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.meal-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.meal-row:first-child {
+  border-top: none;
+}
+
+.meal-row .what .desc {
+  font-size: 14px;
+  font-weight: 550;
+}
+
+.meal-row .what .when {
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin-top: 1px;
+}
+
+.meal-row .macros {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.meal-row .macros .kcal {
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.meal-row .macros .pcf {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  margin-top: 1px;
+}
+
+.empty-note {
+  color: var(--ink-muted);
+  font-size: 13.5px;
+  padding: 6px 0;
+}
+
+/* --- day stepper --------------------------------------------------------------- */
+
+.day-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.day-nav .date {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.day-nav button {
+  background: var(--surface);
+  color: var(--ink-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  width: 34px;
+  height: 30px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.day-nav button:disabled {
+  opacity: 0.35;
+}
+
+/* --- pickers -------------------------------------------------------------------- */
+
+.chip-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+
+.chip-row::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 13px;
+  cursor: pointer;
+}
+
+.chip.active {
+  color: var(--surface);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.seg-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.seg {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px;
+}
+
+.seg button {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.seg button.active {
+  color: var(--ink);
+  background: var(--page);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+/* --- chart card -------------------------------------------------------------------- */
+
+.chart-legend {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 6px;
+}
+
+.chart-legend .key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.chart-legend .swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.chart-legend .stroke {
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.viz-tooltip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.viz-tooltip .t-when {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  margin-bottom: 4px;
+}
+
+.viz-tooltip .t-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  padding: 1px 0;
+}
+
+.viz-tooltip .t-row .line-key {
+  width: 12px;
+  height: 2.5px;
+  border-radius: 1px;
+}
+
+.viz-tooltip .t-row strong {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-tooltip .t-row .t-label {
+  color: var(--ink-2);
+}
+
+.viz-tooltip .t-sub {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  margin-top: 3px;
+}
+
+/* --- data table (chart alternative) --------------------------------------------------- */
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.data-table th {
+  text-align: right;
+  font-weight: 600;
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--baseline);
+  padding: 6px 8px;
+}
+
+.data-table th:first-child,
+.data-table td:first-child {
+  text-align: left;
+  padding-left: 0;
+}
+
+.data-table td {
+  text-align: right;
+  border-bottom: 1px solid var(--hairline);
+  padding: 6px 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table td.na {
+  color: var(--ink-muted);
+}
+
+/* --- login ------------------------------------------------------------------------------ */
+
+.login {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+}
+
+.login .mark {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+}
+
+.login h1 {
+  font-size: 26px;
+  margin: 4px 0 0;
+  letter-spacing: -0.02em;
+}
+
+.login p {
+  color: var(--ink-2);
+  font-size: 14px;
+  margin: 0 0 10px;
+  max-width: 300px;
+}
+
+.login .google-button {
+  display: inline-block;
+  background: var(--accent);
+  color: #fcfcfb;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 12px;
+  padding: 12px 22px;
+}
+
+.login .error {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.center-note {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+
+.error-note {
+  color: var(--danger);
+  font-size: 13.5px;
+}
