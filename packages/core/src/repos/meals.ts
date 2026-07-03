@@ -5,6 +5,7 @@ import type { LogMealInput, SetNutritionTargetsInput } from "../schemas/inputs.j
 import { NOMINAL_MEAL_TIMES, todayIn, zonedToUtc } from "../time.js";
 
 export type Meal = typeof meals.$inferSelect;
+export type MealItem = typeof mealItems.$inferSelect;
 export type NutritionTarget = typeof nutritionTargets.$inferSelect;
 
 export interface MealDuplicateCandidate {
@@ -169,6 +170,35 @@ export async function getTargetsFor(
     .orderBy(desc(nutritionTargets.effectiveDate))
     .limit(1);
   return rows[0];
+}
+
+export interface MealDetail {
+  meal: Meal;
+  items: MealItem[];
+}
+
+/**
+ * One addressable meal with its items — backs the PWA's GET /api/meals/:id
+ * (specs/02-pwa-client/SPEC.md §5: reads expose ids/provenance so the later
+ * edit/delete phase slots in without restructuring).
+ */
+export async function getMealWithItems(
+  db: Db,
+  ctx: UserCtx,
+  mealId: string,
+): Promise<MealDetail | undefined> {
+  const rows = await db
+    .select()
+    .from(meals)
+    .where(and(eq(meals.userId, ctx.userId), eq(meals.id, mealId)));
+  const meal = rows[0];
+  if (!meal) return undefined;
+  const items = await db
+    .select()
+    .from(mealItems)
+    .where(and(eq(mealItems.userId, ctx.userId), eq(mealItems.mealId, mealId)))
+    .orderBy(mealItems.seq);
+  return { meal, items };
 }
 
 export interface DayNutrition {
