@@ -357,9 +357,10 @@ All writes return the created record (with computed fields) so the agent can con
 
 ### 6.3 Resources & prompts
 
-- **Resource `corpus://schema`** — annotated schema reference (tables, columns, semantics, canonical units, analyte dictionary) so the model writes correct SQL without trial and error.
-- **Resource `corpus://profile`** — user preferences, timezone, active goals digest.
-- **Prompts** — reusable, versioned workflows: `morning_checkin`, `log_workout_conversation`, `plan_todays_workout`, `finish_my_macros`, `import_lab_report`, `weekly_review`. These encode the interaction patterns so every chat doesn't reinvent them.
+- **Resource `corpus://schema`** — annotated schema reference (tables, columns, semantics, canonical units) so the model writes correct SQL without trial and error. *Implemented.*
+- **Resource `corpus://analytes`** — canonical analyte dictionary (snake_case names, categories, preferred units) for lab mapping. *Implemented* (the analyte dictionary was split out of `corpus://schema`).
+- **Resource `corpus://profile`** — user preferences, timezone, active goals digest. *Implemented* (`apps/mcp-server/src/profile.ts`).
+- **Prompts** — reusable, versioned workflows: `morning_checkin`, `log_workout_conversation`, `plan_todays_workout`, `finish_my_macros`, `import_lab_report`, `weekly_review`. These encode the interaction patterns so every chat doesn't reinvent them. *Implemented* (`apps/mcp-server/src/prompts.ts`); each expands to a single user-turn message that drives the workflow through the real tools.
 
 ## 7. Auth & security
 

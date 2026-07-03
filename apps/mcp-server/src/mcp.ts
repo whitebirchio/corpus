@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpAgent } from "agents/mcp";
+import { registerPrompts } from "./prompts.js";
 import { registerTools } from "./tools.js";
 import type { GrantProps } from "./types.js";
 
@@ -18,5 +19,7 @@ export class CorpusMcpAgent extends McpAgent<Env, unknown, GrantProps> {
       }
       return props;
     });
+    // Prompts are static workflow scaffolds — no auth/data access needed.
+    registerPrompts(this.server);
   }
 }

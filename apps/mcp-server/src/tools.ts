@@ -48,6 +48,7 @@ import {
   type UserCtx,
 } from "@corpus/core";
 import { queryData, withUserDb } from "./db.js";
+import { renderProfile } from "./profile.js";
 import { SCHEMA_DOC } from "./schemaDoc.js";
 import { issueUploadToken, uploadUrlFor, UPLOAD_TTL_SECONDS } from "./upload.js";
 import type { GrantProps } from "./types.js";
@@ -598,6 +599,23 @@ export function registerTools(
       for (const [category, lines] of byCategory) {
         text += `\n## ${category}\n${lines.join("\n")}\n`;
       }
+      return { contents: [{ uri: uri.href, mimeType: "text/markdown", text }] };
+    },
+  );
+
+  server.registerResource(
+    "profile",
+    "corpus://profile",
+    {
+      title: "User profile",
+      description:
+        "Who the user is and what they're working toward: display name, timezone, unit preference, and the " +
+        "active-goals digest ordered by priority. Read this to prime any conversation with context.",
+      mimeType: "text/markdown",
+    },
+    async (uri) => {
+      const goals = await run((db, c) => getActiveGoals(db, c));
+      const text = renderProfile(getProps(), goals);
       return { contents: [{ uri: uri.href, mimeType: "text/markdown", text }] };
     },
   );
