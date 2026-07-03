@@ -71,7 +71,7 @@ function findIncompleteMovements(input: LogWorkoutInput): IncompleteMovement[] {
 }
 
 /**
- * SPEC.md §5.9 tier 3: conversationally-logged workouts have no natural key,
+ * specs/01-initial-platform/SPEC.md §5.9 tier 3: conversationally-logged workouts have no natural key,
  * so before inserting we look for a same-day near-match (shared movements, or
  * same block-type mix for movement-less sessions like plain runs). If found
  * and allowDuplicate is not set, we return the candidates so the agent can ask.

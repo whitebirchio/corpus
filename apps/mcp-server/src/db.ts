@@ -5,7 +5,7 @@ import type { Db } from "@corpus/core";
 
 /**
  * Run `fn` against Neon inside a transaction with `app.user_id` set, so
- * Postgres RLS scopes every statement to the authenticated user (SPEC.md §7).
+ * Postgres RLS scopes every statement to the authenticated user (specs/01-initial-platform/SPEC.md §7).
  * A fresh Pool per call: Workers isolates can't reliably share sockets across
  * requests, and Neon's serverless driver is built for this pattern.
  */
@@ -58,7 +58,7 @@ const MAX_ROWS = 500;
 const STATEMENT_TIMEOUT_MS = 8000;
 
 /**
- * Execute one read-only SELECT scoped by RLS (SPEC.md §6.2 query_data).
+ * Execute one read-only SELECT scoped by RLS (specs/01-initial-platform/SPEC.md §6.2 query_data).
  * Defense in depth: statement allowlist + read-only transaction +
  * statement_timeout + row cap — on top of per-user RLS.
  */

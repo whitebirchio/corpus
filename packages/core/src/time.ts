@@ -1,6 +1,6 @@
 /**
  * Timezone-aware date handling. Timestamps are stored UTC; daily records key
- * on a `local_date` derived from the user's IANA timezone (SPEC.md §5).
+ * on a `local_date` derived from the user's IANA timezone (specs/01-initial-platform/SPEC.md §5).
  * Implemented with Intl (available in Workers) — no date library needed.
  */
 

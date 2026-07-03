@@ -1,5 +1,5 @@
 /**
- * Garmin Connect importer (SPEC.md §8.4, rescoped 2026-07-02).
+ * Garmin Connect importer (specs/01-initial-platform/SPEC.md §8.4, rescoped 2026-07-02).
  *
  * The nightly sync job (apps/garmin-sync) authenticates with Garmin and
  * forwards the raw JSON it pulled; ALL mapping, unit handling, and

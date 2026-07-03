@@ -6,7 +6,7 @@ import type { GrantProps } from "./types.js";
 
 /**
  * One Durable Object instance per MCP session (Streamable HTTP transport).
- * OAuth props from the grant arrive as this.props (SPEC.md §7).
+ * OAuth props from the grant arrive as this.props (specs/01-initial-platform/SPEC.md §7).
  */
 export class CorpusMcpAgent extends McpAgent<Env, unknown, GrantProps> {
   server = new McpServer({ name: "Corpus", version: "0.1.0" });

@@ -9,7 +9,7 @@ import { getRecentWorkouts, muscleGroupVolume, type RecentWorkout } from "./work
 import { todayIn } from "../time.js";
 
 /**
- * The morning-briefing payload (SPEC.md §6.2 get_daily_summary): one call
+ * The morning-briefing payload (specs/01-initial-platform/SPEC.md §6.2 get_daily_summary): one call
  * primes any daily conversation with recovery, nutrition, training recency,
  * goals, regimen, and standing insights.
  */

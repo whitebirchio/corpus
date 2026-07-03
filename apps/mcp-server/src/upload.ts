@@ -1,5 +1,5 @@
 /**
- * Original-document byte storage (SPEC.md §5.6, §8.3). The MCP tool
+ * Original-document byte storage (specs/01-initial-platform/SPEC.md §5.6, §8.3). The MCP tool
  * `create_document_upload` mints a one-time, short-lived token; the user PUTs
  * the file to /upload/{token}; the worker writes it to the R2 binding and
  * finalizes the `documents` row. No S3 credentials — just the bucket binding.

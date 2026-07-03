@@ -1,5 +1,5 @@
 /**
- * MCP prompts (SPEC.md §6.3): reusable, versioned workflows that encode the
+ * MCP prompts (specs/01-initial-platform/SPEC.md §6.3): reusable, versioned workflows that encode the
  * recurring interaction patterns so every chat doesn't reinvent them. A prompt
  * returns a single user-turn message that states the intent and the procedure
  * the assistant should follow using the real tools/resources — no data access

@@ -1,4 +1,4 @@
-# Nightly Garmin Connect → Corpus sync (SPEC.md §8.4).
+# Nightly Garmin Connect → Corpus sync (specs/01-initial-platform/SPEC.md §8.4).
 #
 # Runs the unofficial-API pull in real Python (the Workers sandbox can't —
 # garminconnect needs raw sockets). ~1-2 min/night against a 2,000-min/month

@@ -1,5 +1,5 @@
 /**
- * MCP tool surface (SPEC.md §6). Thin adapters: validate (Zod shapes from
+ * MCP tool surface (specs/01-initial-platform/SPEC.md §6). Thin adapters: validate (Zod shapes from
  * @corpus/core), open an RLS-scoped transaction, call the core repo, echo the
  * result back for confirmation. No business logic lives here.
  */

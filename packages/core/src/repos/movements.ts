@@ -23,7 +23,7 @@ export function normalizeMovementName(name: string): string {
 
 /**
  * Resolve a conversational movement name to a catalog row, creating an
- * unverified entry when nothing matches (SPEC.md §6.1 log_workout). Matching
+ * unverified entry when nothing matches (specs/01-initial-platform/SPEC.md §6.1 log_workout). Matching
  * is against normalized canonical names and aliases.
  */
 export async function resolveMovement(

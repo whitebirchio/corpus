@@ -12,7 +12,7 @@ export type BodyMeasurement = typeof bodyMeasurements.$inferSelect;
 const WEIGH_IN_TIME = "07:00";
 
 /**
- * Upsert semantics per SPEC.md §5.9: the natural key is (user_id, local_date)
+ * Upsert semantics per specs/01-initial-platform/SPEC.md §5.9: the natural key is (user_id, local_date)
  * and only the fields present in this check-in are written on conflict —
  * re-logging updates what you said, preserves what you didn't. A later Garmin
  * import (which supplies only measured fields) merges the same way, leaving

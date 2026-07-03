@@ -8,8 +8,9 @@ goals — one schema, one timeline, one place to ask *"what should I do today?"*
 
 ## Architecture
 
-- **[SPEC.md](SPEC.md)** — the full system specification (data model, MCP
-  surface, auth, idempotency, phases). Read this first.
+- **[specs/](specs/README.md)** — the design history, one subdirectory per
+  epic of work (data model, MCP surface, auth, idempotency all live in the
+  first epic's spec). Read this first.
 - **`packages/core`** — domain core: Drizzle schema, Zod tool schemas, unit
   conversion (canonical metric storage), timezone handling, repositories with
   dedup/upsert semantics. No MCP or HTTP dependencies.
@@ -35,7 +36,8 @@ npm run deploy         # deploy to Cloudflare
 
 ## Status
 
-Phases 1–2 implemented:
+The initial platform ([specs/01-initial-platform](specs/01-initial-platform/SPEC.md))
+is implemented through Phase 3, minus one leftover item:
 
 - **Phase 1 — core daily loop:** check-ins, workouts, meals, regimen, goals,
   insights, daily summary, read-only SQL analysis.
@@ -44,6 +46,11 @@ Phases 1–2 implemented:
   `record_fitness_test` (VO2 max / RMR / DEXA, with DEXA fan-out to body
   composition + regional detail), `get_lab_history`, and optional original-file
   storage in R2 via a credential-free worker upload route.
+- **Phase 3 — imports & rhythm:** automated nightly Garmin sync with
+  reconciliation, and all six MCP prompts (`morning_checkin`, `weekly_review`,
+  …). Upload ergonomics from mobile is still open — see the backlog below.
 
-Phase 3 (Garmin/MacroFactor importers, MCP prompts, proactive briefings) is
-next — see SPEC.md §10.
+What's next lives in [specs/](specs/README.md): epic 2 (web/iOS clients) is
+starting exploration, and anything not yet scoped into an epic — upload
+ergonomics, proactive briefings, a dashboard, second-user onboarding — is
+tracked in its backlog.

@@ -1,11 +1,11 @@
 /**
- * Zod input schemas for MCP tools (SPEC.md §6.1). Defined in core so the MCP
+ * Zod input schemas for MCP tools (specs/01-initial-platform/SPEC.md §6.1). Defined in core so the MCP
  * server, importers, and tests all validate identically.
  *
  * Every quantity that has a unit arrives unit-tagged ({ value, unit }) and is
  * converted server-side (units.ts). Dates are YYYY-MM-DD in the user's
  * timezone; times are HH:MM local. `allowDuplicate` opts out of soft-dedup
- * after the agent has confirmed with the user (SPEC.md §5.9 tier 3).
+ * after the agent has confirmed with the user (specs/01-initial-platform/SPEC.md §5.9 tier 3).
  */
 import { z } from "zod";
 

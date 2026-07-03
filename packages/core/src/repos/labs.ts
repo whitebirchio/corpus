@@ -124,7 +124,7 @@ export interface RecordLabPanelResult {
 }
 
 /**
- * Idempotent lab import (SPEC.md §5.9): the panel is keyed by accession number
+ * Idempotent lab import (specs/01-initial-platform/SPEC.md §5.9): the panel is keyed by accession number
  * when present, else by (source, collected_on, lab_name). Results upsert by
  * (panel, analyte). A re-import that changes an existing analyte's value is
  * applied but reported in `changed` rather than silently swallowed.
@@ -335,7 +335,7 @@ export interface RecordFitnessTestResult {
 /**
  * Idempotent test import keyed by (test_type, performed_on). A DEXA additionally
  * fans out its structured body composition into body_measurements (+ regional
- * detail), on one timeline with scale weigh-ins (SPEC.md §5.6).
+ * detail), on one timeline with scale weigh-ins (specs/01-initial-platform/SPEC.md §5.6).
  */
 export async function recordFitnessTest(
   db: Db,

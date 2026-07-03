@@ -1,5 +1,5 @@
 /**
- * Garmin sync endpoints (SPEC.md §8.4). Not part of the MCP surface — these
+ * Garmin sync endpoints (specs/01-initial-platform/SPEC.md §8.4). Not part of the MCP surface — these
  * serve the nightly GitHub Actions job (apps/garmin-sync), authenticated by a
  * shared secret (GARMIN_INGEST_SECRET, a Worker secret mirrored in the repo's
  * Actions secrets).

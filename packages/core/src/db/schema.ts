@@ -1,5 +1,5 @@
 /**
- * Corpus data model — see SPEC.md §5.
+ * Corpus data model — see specs/01-initial-platform/SPEC.md §5.
  *
  * Conventions:
  * - Column property names are camelCase; the DB uses snake_case via drizzle's

@@ -1,5 +1,5 @@
 /**
- * The corpus://schema resource (SPEC.md §6.3): an annotated schema reference
+ * The corpus://schema resource (specs/01-initial-platform/SPEC.md §6.3): an annotated schema reference
  * so the model writes correct SQL through query_data without trial and error.
  * Keep in sync with @corpus/core src/db/schema.ts.
  */

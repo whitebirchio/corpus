@@ -138,7 +138,7 @@ lower my cholesterol, given my labs?"* — Claude should reason over your real L
 
 A GitHub Actions job pulls sleep, HRV, resting HR, steps, body battery,
 stress, and activity summaries from Garmin Connect every night and posts them
-to the worker (SPEC.md §8.4). One-time setup:
+to the worker (../specs/01-initial-platform/SPEC.md §8.4). One-time setup:
 
 1. **Create the shared secret** (any long random string):
 

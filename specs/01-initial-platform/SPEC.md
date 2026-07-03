@@ -1,6 +1,6 @@
 # Corpus — System Specification
 
-**Status:** Draft v1 · 2026-07-01
+**Status:** Implemented through Phase 3, minus the upload-ergonomics pass — see [specs/README.md](../README.md) for what's next.
 **Owner:** Scott Schmalz
 
 Corpus is a personal health & wellness tracking system. It stores exercise, nutrition, medication/supplement, lab/test, biometric, and goal data in one place, and exposes that data to AI agents so that daily interaction — both data entry and analysis — happens conversationally. The canonical interaction is asking questions like:
@@ -76,8 +76,10 @@ corpus/
 ├── packages/
 │   └── core/            # domain types, zod schemas, drizzle schema, repositories, unit conversion
 ├── apps/
-│   └── mcp-server/      # Cloudflare Worker: McpAgent, OAuth, tool/resource/prompt definitions
-├── docs/                # this spec, ADRs as decisions evolve
+│   ├── mcp-server/      # Cloudflare Worker: McpAgent, OAuth, tool/resource/prompt definitions
+│   └── garmin-sync/     # GitHub Actions job: unofficial Garmin API -> /garmin/ingest (§8.4)
+├── docs/                # evergreen how-to: one-time setup, local dev workflow
+├── specs/               # epic-by-epic design history (this file is specs/01-initial-platform/)
 └── (npm workspaces, shared tsconfig/eslint)
 ```
 
@@ -406,13 +408,14 @@ Add wife's email to the allowlist → she signs in via Google → `users` row cr
 | **0 — Scaffold** | npm workspaces, `@corpus/core` + `apps/mcp-server`, Drizzle + Neon, wrangler config, CI deploy, hello-world MCP tool reachable from Claude | Connector added in Claude; test tool responds |
 | **1 — Core loop** | Full schema + migrations + RLS; OAuth (Google upstream, allowlist); write tools: checkin, workout (all 3 modalities), meal, observation, regimen, goals; reads: `get_daily_summary`, `query_data`, schema resource; movement catalog seeded | A full real day (check-in, meals, workout, "what workout today?") runs end-to-end from the phone |
 | **2 — Baselines & documents** | R2 + `documents` + presigned upload; `record_lab_panel` / `record_fitness_test` + analyte dictionary; import actual baselines: Function Health panel, DexaFit/RMR/VO2 Max, current regimen, goals | Cholesterol question answerable against real lab data |
-| **3 — Imports & rhythm** | Automated nightly Garmin sync (unofficial API via GitHub Actions → `/garmin/ingest`, §8.4) with reconciliation; ~~MacroFactor CSV parser~~ (dropped, decision 8b); MCP prompts (`morning_checkin`, `weekly_review`, …); upload-ergonomics pass | Garmin biometrics land nightly with zero manual steps; weekly review works |
-| **4 — Later / optional** | Scheduled Workers (cron) for proactive briefings (needs a push channel — e.g., email), custom agent app on `@corpus/core`, read-only dashboard, second user | — |
+| **3 — Imports & rhythm** | ✅ Automated nightly Garmin sync (unofficial API via GitHub Actions → `/garmin/ingest`, §8.4) with reconciliation; ~~MacroFactor CSV parser~~ (dropped, decision 8b); ✅ MCP prompts (`morning_checkin`, `weekly_review`, …). Upload-ergonomics pass did **not** ship as part of this phase — moved to the backlog in [specs/README.md](../README.md). | Garmin biometrics land nightly with zero manual steps; weekly review works — met |
+
+Everything past Phase 3 stopped being a committed, fixed roadmap here. Rather than a speculative "Phase 4," further work is tracked as its own scoped **epic** once it's actually being designed (e.g. [specs/02-web-ios-clients](../02-web-ios-clients/SPEC.md)), and anything not yet scoped into an epic lives in the backlog in [specs/README.md](../README.md).
 
 ## 11. Risks & open questions
 
 1. **Estimation accuracy** — agent macro estimates from photos/descriptions are ±20%+. Mitigations: `estimate_confidence` on items, prefer MacroFactor numbers when available, treat trends over absolutes.
-2. **Upload ergonomics from mobile** — presigned-URL upload is clunky on a phone. Phase 3 revisits (tiny authenticated upload page or MCP file passthrough if/when Claude clients support it). Lab imports are infrequent and desktop-friendly, so v1 accepts this.
+2. **Upload ergonomics from mobile** — presigned-URL upload is clunky on a phone. Tracked in the [specs/README.md](../README.md) backlog (tiny authenticated upload page or MCP file passthrough if/when Claude clients support it). Lab imports are infrequent and desktop-friendly, so v1 accepts this.
 3. **Free-tier drift** — pricing verified 2026-07 (sources in docs/ADRs); a Workers-paid fallback ($5/mo) exists and equals the budget ceiling.
 4. **Unit errors** — the classic silent corruption. Mitigated by design: unit-tagged tool inputs, server-side conversion only, canonical metric storage, echo-back confirmation after every write.
 5. **Schema evolution** — early logging will surface missing fields fast. `extras jsonb` absorbs surprises; Drizzle migrations keep changes cheap. Expect schema churn in weeks 1–4.

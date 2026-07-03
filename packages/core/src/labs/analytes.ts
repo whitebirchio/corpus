@@ -1,5 +1,5 @@
 /**
- * Canonical analyte dictionary + value/range parsers (SPEC.md §5.6).
+ * Canonical analyte dictionary + value/range parsers (specs/01-initial-platform/SPEC.md §5.6).
  *
  * Lab reports print the same analyte under wildly varying names; we store a
  * canonical snake_case `analyte` so trends are one WHERE clause. The dictionary

@@ -1,5 +1,5 @@
 /**
- * Unit handling — SPEC.md §5 conventions.
+ * Unit handling — specs/01-initial-platform/SPEC.md §5 conventions.
  *
  * Storage is canonical metric: kg (mass), meters (distance), seconds
  * (duration), kcal (energy). Tools accept unit-tagged values and THIS module

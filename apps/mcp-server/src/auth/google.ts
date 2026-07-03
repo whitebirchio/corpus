@@ -1,7 +1,7 @@
 /**
  * Default (non-API) handler for the OAuthProvider: implements the /authorize
  * and /callback leg using Google as the upstream identity provider, with a
- * hard email allowlist (SPEC.md §7).
+ * hard email allowlist (specs/01-initial-platform/SPEC.md §7).
  *
  * Flow: Claude → /authorize (we parse the OAuth request, stash it in `state`,
  * bounce to Google) → Google login → /callback (verify email against the
@@ -121,11 +121,11 @@ export const GoogleHandler = {
     const { pathname } = new URL(request.url);
     if (pathname === "/authorize") return handleAuthorize(request, env);
     if (pathname === "/callback") return handleCallback(request, env);
-    // Token-gated original-document upload (SPEC.md §8.3). The token is the
+    // Token-gated original-document upload (specs/01-initial-platform/SPEC.md §8.3). The token is the
     // authorization; it's single-use and short-lived.
     const upload = pathname.match(/^\/upload\/([A-Za-z0-9]+)$/);
     if (upload) return handleUpload(request, env, upload[1]!);
-    // Garmin sync job endpoints — shared-secret auth, not OAuth (SPEC.md §8.4).
+    // Garmin sync job endpoints — shared-secret auth, not OAuth (specs/01-initial-platform/SPEC.md §8.4).
     if (pathname.startsWith("/garmin/")) return handleGarmin(request, env);
     if (pathname === "/") {
       return new Response("Corpus MCP server. Connect via an MCP client at /mcp.", {

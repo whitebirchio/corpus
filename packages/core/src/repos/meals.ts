@@ -20,7 +20,7 @@ export type LogMealResult =
   | { status: "possible_duplicate"; candidates: MealDuplicateCandidate[] };
 
 /**
- * Hybrid granularity per SPEC.md §5.4: totals are always populated — summed
+ * Hybrid granularity per specs/01-initial-platform/SPEC.md §5.4: totals are always populated — summed
  * from items when itemized, taken directly otherwise. Soft dedup per §5.9
  * tier 3: a same-day meal of the same type within 15% calories is surfaced
  * as a candidate instead of silently inserted.
