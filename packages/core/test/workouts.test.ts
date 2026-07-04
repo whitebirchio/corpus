@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db, UserCtx } from "../src/db/client.js";
 import { normalizeMovementName, resolveMovement } from "../src/repos/movements.js";
-import { getMovementHistory, getRecentWorkouts, logWorkout, muscleGroupVolume } from "../src/repos/workouts.js";
+import {
+  getDayWorkouts,
+  getMovementHistory,
+  getRecentWorkouts,
+  getWorkoutDetail,
+  logWorkout,
+  muscleGroupVolume,
+} from "../src/repos/workouts.js";
 import { seedMovements } from "../src/seed/movements.js";
 import { createTestDb, createTestUser } from "./helpers.js";
 
@@ -256,5 +263,86 @@ describe("logWorkout", () => {
     const volume = await muscleGroupVolume(db, ctx, 7, new Date("2026-07-02T12:00:00Z"));
     expect(volume.chest).toBe(4); // 4 working sets of bench
     expect(volume.triceps).toBeGreaterThanOrEqual(4);
+  });
+
+  it("returns only the sessions logged on the requested local date", async () => {
+    await logWorkout(db, ctx, strengthDay); // 2026-07-01
+    await logWorkout(db, ctx, {
+      date: "2026-07-02",
+      title: "Zone 2",
+      blocks: [
+        {
+          type: "run" as const,
+          distance: { value: 5, unit: "mi" as const },
+          duration: { value: 45, unit: "min" as const },
+          movements: [{ name: "run" }],
+        },
+      ],
+    });
+
+    const day = await getDayWorkouts(db, ctx, "2026-07-01");
+    expect(day).toHaveLength(1);
+    expect(day[0]?.session.title).toBe("Upper push");
+    expect(day[0]?.movementNames).toContain("bench press");
+    expect(day[0]?.muscleGroups).toContain("chest");
+
+    expect(await getDayWorkouts(db, ctx, "2026-07-02")).toHaveLength(1);
+    expect(await getDayWorkouts(db, ctx, "2026-07-03")).toHaveLength(0);
+  });
+
+  it("returns full block/movement/set detail for a strength session", async () => {
+    const logged = await logWorkout(db, ctx, strengthDay);
+    if (logged.status !== "logged") throw new Error("expected logged");
+
+    const detail = await getWorkoutDetail(db, ctx, logged.workout.session.id);
+    expect(detail).not.toBeNull();
+    expect(detail!.session.title).toBe("Upper push");
+    expect(detail!.blocks).toHaveLength(1);
+
+    const block = detail!.blocks[0]!;
+    expect(block.blockType).toBe("strength");
+    expect(block.movements.map((m) => m.name)).toEqual(["bench press", "overhead press"]);
+
+    const bench = block.movements[0]!;
+    expect(bench.sets).toHaveLength(4);
+    expect(bench.sets[0]).toMatchObject({ setNumber: 1, reps: 8, rpe: 7 });
+    // 185 lb stored canonically as kg.
+    expect(bench.sets[0]!.loadKg).toBeCloseTo(83.9, 1);
+    expect(bench.sets[3]!.isFailure).toBe(true);
+  });
+
+  it("returns metcon scheme and result on the block", async () => {
+    const logged = await logWorkout(db, ctx, {
+      date: "2026-07-04",
+      title: "Fran-ish",
+      blocks: [
+        {
+          type: "metcon" as const,
+          scheme: "for_time" as const,
+          timeCap: { value: 10, unit: "min" as const },
+          resultTime: { value: 7.5, unit: "min" as const },
+          rx: true,
+          movements: [
+            { name: "thruster", prescription: "21-15-9", load: { value: 95, unit: "lb" as const } },
+            { name: "pull up", prescription: "21-15-9" },
+          ],
+        },
+      ],
+    });
+    if (logged.status !== "logged") throw new Error("expected logged");
+
+    const detail = await getWorkoutDetail(db, ctx, logged.workout.session.id);
+    const block = detail!.blocks[0]!;
+    expect(block.scheme).toBe("for_time");
+    expect(block.rx).toBe(true);
+    expect(block.resultTimeS).toBe(450); // 7.5 min
+    expect(block.movements[0]!.loadKg).toBeCloseTo(43.1, 1); // 95 lb
+  });
+
+  it("returns null for another user's session", async () => {
+    const logged = await logWorkout(db, ctx, strengthDay);
+    if (logged.status !== "logged") throw new Error("expected logged");
+    const other = await createTestUser(db, { email: "other@example.com" });
+    expect(await getWorkoutDetail(db, other, logged.workout.session.id)).toBeNull();
   });
 });

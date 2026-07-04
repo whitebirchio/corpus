@@ -12,6 +12,15 @@ export function fmtGrams(n: number): string {
   return `${fmtInt(n)}g`;
 }
 
+/** "1h 15m" / "45m" for a duration in seconds; null-safe. */
+export function fmtDuration(seconds: number | null): string | null {
+  if (seconds == null || seconds <= 0) return null;
+  const mins = Math.round(seconds / 60);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
 /** "7:32 AM" for an ISO instant, in the user's timezone. */
 export function fmtTime(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat("en-US", {

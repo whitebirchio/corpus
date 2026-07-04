@@ -11,11 +11,17 @@ import { Hono, type Context } from "hono";
 import { getCookie } from "hono/cookie";
 import { z } from "zod";
 import {
+  formatDistance,
+  formatDuration,
+  formatMass,
+  formatPace,
   getDailyMetrics,
   getDayNutrition,
+  getDayWorkouts,
   getMealWithItems,
   getTrend,
   getUser,
+  getWorkoutDetail,
   localDate as localDateSchema,
   metersToMiles,
   todayIn,
@@ -24,6 +30,8 @@ import {
   type TrendResult,
   type User,
   type UserCtx,
+  type WorkoutBlockDetail,
+  type WorkoutDetail,
 } from "@corpus/core";
 import { isSecureRequest, allowedEmails } from "./auth.js";
 import { withUserDb } from "./db.js";
@@ -107,6 +115,42 @@ apiRoutes.get("/days/:date/nutrition", async (c) => {
   return c.json({ date, meals: day.meals, totals: day.totals, targets: day.targets ?? null });
 });
 
+apiRoutes.get("/days/:date/workouts", async (c) => {
+  const date = parseDateParam(c);
+  const workouts = await runAsUser(c, (db, ctx) => getDayWorkouts(db, ctx, date));
+  // Flatten the enriched session into a glanceable card shape; the session id
+  // stays addressable for a future detail view (SPEC §5.3).
+  return c.json({
+    date,
+    workouts: workouts.map((w) => ({
+      id: w.session.id,
+      startedAt: w.session.startedAt,
+      title: w.session.title,
+      durationS: w.session.durationS,
+      sessionRpe: w.session.sessionRpe,
+      avgHr: w.session.avgHr,
+      maxHr: w.session.maxHr,
+      calories: w.session.calories,
+      notes: w.session.notes,
+      source: w.session.source,
+      blockTypes: w.blockTypes,
+      movements: w.movementNames,
+      muscleGroups: w.muscleGroups,
+    })),
+  });
+});
+
+apiRoutes.get("/workouts/:id", async (c) => {
+  const id = c.req.param("id");
+  if (!z.uuid().safeParse(id).success) throw new ApiError(400, "Invalid workout id");
+  const detail = await runAsUser(c, async (db, ctx, user) => {
+    const d = await getWorkoutDetail(db, ctx, id!);
+    return d ? serializeWorkoutDetail(d, user.unitPreference) : null;
+  });
+  if (!detail) throw new ApiError(404, "Workout not found");
+  return c.json(detail);
+});
+
 apiRoutes.get("/days/:date/metrics", async (c) => {
   const date = parseDateParam(c);
   const metrics = await runAsUser(c, (db, ctx) => getDailyMetrics(db, ctx, date));
@@ -137,6 +181,73 @@ apiRoutes.get("/trends/:metric", async (c) => {
   );
   return c.json(body);
 });
+
+type Pref = "imperial" | "metric";
+
+/**
+ * Canonical → display for the workout detail view: physical quantities become
+ * pre-formatted strings in the user's units (SPEC §3), so the SPA renders them
+ * verbatim. Reps/RPE/HR pass through as numbers.
+ */
+function serializeWorkoutDetail(d: WorkoutDetail, pref: Pref) {
+  return {
+    id: d.session.id,
+    title: d.session.title,
+    startedAt: d.session.startedAt,
+    durationS: d.session.durationS,
+    sessionRpe: d.session.sessionRpe,
+    avgHr: d.session.avgHr,
+    maxHr: d.session.maxHr,
+    calories: d.session.calories,
+    notes: d.session.notes,
+    blocks: d.blocks.map((b) => serializeBlock(b, pref)),
+  };
+}
+
+function serializeBlock(b: WorkoutBlockDetail, pref: Pref) {
+  return {
+    seq: b.seq,
+    blockType: b.blockType,
+    scheme: b.scheme,
+    rounds: b.roundsPlanned,
+    timeCap: b.timeCapS != null ? formatDuration(b.timeCapS) : null,
+    result: metconResult(b),
+    rx: b.rx,
+    distance: b.distanceM != null ? formatDistance(b.distanceM, pref) : null,
+    duration: b.durationS != null ? formatDuration(b.durationS) : null,
+    pace: b.avgPaceSPerKm != null ? formatPace(b.avgPaceSPerKm, pref) : null,
+    avgHr: b.avgHr,
+    maxHr: b.maxHr,
+    rpe: b.rpe,
+    notes: b.notes,
+    movements: b.movements.map((m) => ({
+      name: m.name,
+      prescription: m.prescription,
+      repsPerRound: m.repsPerRound,
+      load: m.loadKg != null ? formatMass(m.loadKg, pref) : null,
+      distancePerRound: m.distanceMPerRound != null ? formatDistance(m.distanceMPerRound, pref) : null,
+      sets: m.sets.map((s) => ({
+        setNumber: s.setNumber,
+        reps: s.reps,
+        load: s.loadKg != null ? formatMass(s.loadKg, pref) : null,
+        rpe: s.rpe,
+        isWarmup: s.isWarmup,
+        isFailure: s.isFailure,
+        notes: s.notes,
+      })),
+    })),
+  };
+}
+
+/** Compose a metcon's outcome into one line: time, rounds+reps, or reps. */
+function metconResult(b: WorkoutBlockDetail): string | null {
+  if (b.resultTimeS != null) return formatDuration(b.resultTimeS);
+  if (b.resultRounds != null) {
+    return b.resultReps ? `${b.resultRounds} rounds + ${b.resultReps}` : `${b.resultRounds} rounds`;
+  }
+  if (b.resultReps != null) return `${b.resultReps} reps`;
+  return null;
+}
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 

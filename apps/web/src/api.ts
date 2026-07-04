@@ -50,6 +50,77 @@ export interface DayNutritionResponse {
   targets: ApiTargets | null;
 }
 
+export interface ApiWorkout {
+  id: string;
+  startedAt: string;
+  title: string | null;
+  durationS: number | null;
+  sessionRpe: number | null;
+  avgHr: number | null;
+  maxHr: number | null;
+  calories: number | null;
+  notes: string | null;
+  source: string;
+  blockTypes: string[];
+  movements: string[];
+  muscleGroups: string[];
+}
+
+export interface DayWorkoutsResponse {
+  date: string;
+  workouts: ApiWorkout[];
+}
+
+export interface ApiWorkoutSet {
+  setNumber: number;
+  reps: number | null;
+  load: string | null;
+  rpe: number | null;
+  isWarmup: boolean;
+  isFailure: boolean;
+  notes: string | null;
+}
+
+export interface ApiWorkoutMovement {
+  name: string;
+  prescription: string | null;
+  repsPerRound: number | null;
+  load: string | null;
+  distancePerRound: string | null;
+  sets: ApiWorkoutSet[];
+}
+
+export interface ApiWorkoutBlock {
+  seq: number;
+  blockType: string;
+  scheme: string | null;
+  rounds: number | null;
+  timeCap: string | null;
+  result: string | null;
+  rx: boolean | null;
+  distance: string | null;
+  duration: string | null;
+  pace: string | null;
+  avgHr: number | null;
+  maxHr: number | null;
+  rpe: number | null;
+  notes: string | null;
+  movements: ApiWorkoutMovement[];
+}
+
+export interface WorkoutDetailResponse {
+  id: string;
+  title: string | null;
+  startedAt: string;
+  durationS: number | null;
+  sessionRpe: number | null;
+  avgHr: number | null;
+  maxHr: number | null;
+  calories: number | null;
+  notes: string | null;
+  blocks: ApiWorkoutBlock[];
+}
+
 export interface ApiDailyMetrics {
   sleepScore: number | null;
   sleepDurationS: number | null;
@@ -126,6 +197,9 @@ export const api = {
   me: () => get<MeResponse>("/api/me"),
   dayNutrition: (date: string) =>
     get<DayNutritionResponse>(`/api/days/${encodeURIComponent(date)}/nutrition`),
+  dayWorkouts: (date: string) =>
+    get<DayWorkoutsResponse>(`/api/days/${encodeURIComponent(date)}/workouts`),
+  workoutDetail: (id: string) => get<WorkoutDetailResponse>(`/api/workouts/${encodeURIComponent(id)}`),
   dayMetrics: (date: string) =>
     get<DayMetricsResponse>(`/api/days/${encodeURIComponent(date)}/metrics`),
   trend: (metric: TrendMetric, from: string, to: string, bucket: TrendBucket) =>

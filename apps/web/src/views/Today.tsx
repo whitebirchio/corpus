@@ -1,6 +1,20 @@
 import { useState } from "react";
-import { api, type MeResponse } from "../api.js";
-import { addDays, fmtDate, fmtGrams, fmtInt, fmtTime, MEAL_TYPE_LABEL } from "../format.js";
+import {
+  api,
+  type ApiWorkout,
+  type ApiWorkoutBlock,
+  type MeResponse,
+  type WorkoutDetailResponse,
+} from "../api.js";
+import {
+  addDays,
+  fmtDate,
+  fmtDuration,
+  fmtGrams,
+  fmtInt,
+  fmtTime,
+  MEAL_TYPE_LABEL,
+} from "../format.js";
 import { useData } from "../useData.js";
 
 /**
@@ -11,9 +25,11 @@ import { useData } from "../useData.js";
 export function Today({ me }: { me: MeResponse }) {
   const [date, setDate] = useState(me.today);
   const nutrition = useData(() => api.dayNutrition(date), [date]);
+  const workouts = useData(() => api.dayWorkouts(date), [date]);
   const metrics = useData(() => api.dayMetrics(date), [date]);
 
   const day = nutrition.data;
+  const sessions = workouts.data?.workouts ?? null;
   const m = metrics.data?.metrics ?? null;
   const isToday = date === me.today;
 
@@ -87,6 +103,23 @@ export function Today({ me }: { me: MeResponse }) {
         )}
       </section>
 
+      {workouts.error ? <div className="card error-note">{workouts.error}</div> : null}
+
+      <section className={`card${workouts.stale ? " stale" : ""}`}>
+        <h2>Workouts</h2>
+        {sessions && sessions.length > 0 ? (
+          <div className="meal-list">
+            {sessions.map((w) => (
+              <WorkoutRow key={w.id} workout={w} timezone={me.user.timezone} />
+            ))}
+          </div>
+        ) : (
+          <div className="empty-note">
+            {sessions ? "Nothing logged — tell Claude about your training." : "Loading…"}
+          </div>
+        )}
+      </section>
+
       {m ? (
         <div className={`tile-grid${metrics.stale ? " stale" : ""}`}>
           {m.bodyBattery != null ? (
@@ -113,6 +146,125 @@ export function Today({ me }: { me: MeResponse }) {
       ) : null}
     </>
   );
+}
+
+/**
+ * One workout: a glanceable summary row (movements, HR, notes) that expands on
+ * tap to the full block/set breakdown, fetched lazily on first open.
+ */
+function WorkoutRow({ workout: w, timezone }: { workout: ApiWorkout; timezone: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [detail, setDetail] = useState<WorkoutDetailResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function toggle() {
+    const next = !expanded;
+    setExpanded(next);
+    if (next && !detail && !error) {
+      api
+        .workoutDetail(w.id)
+        .then(setDetail)
+        .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+    }
+  }
+
+  const meta = [
+    fmtTime(w.startedAt, timezone),
+    fmtDuration(w.durationS),
+    w.sessionRpe != null ? `RPE ${w.sessionRpe}` : null,
+    w.avgHr != null ? `♥ ${w.avgHr}${w.maxHr != null ? `/${w.maxHr}` : ""}` : null,
+  ].filter(Boolean);
+
+  return (
+    <div className="workout-item" data-workout-id={w.id}>
+      <button className="meal-row workout-head" onClick={toggle} aria-expanded={expanded}>
+        <div className="what">
+          <div className="desc">
+            <span className={`caret${expanded ? " open" : ""}`}>›</span>
+            {w.title || w.movements.slice(0, 3).join(", ") || "Workout"}
+          </div>
+          <div className="when">
+            {w.blockTypes.length > 0 ? `${w.blockTypes.map(cap).join(" · ")} — ` : ""}
+            {meta.join(" · ")}
+          </div>
+        </div>
+        <div className="macros">
+          {w.calories != null ? <div className="kcal">{fmtInt(w.calories)} kcal</div> : null}
+          {w.muscleGroups.length > 0 ? (
+            <div className="pcf">{w.muscleGroups.slice(0, 4).join(" · ")}</div>
+          ) : null}
+        </div>
+      </button>
+
+      {expanded ? (
+        <div className="workout-detail">
+          {error ? <div className="empty-note">{error}</div> : null}
+          {!detail && !error ? <div className="empty-note">Loading…</div> : null}
+          {detail ? (
+            <>
+              {detail.blocks.map((b) => (
+                <WorkoutBlock key={b.seq} block={b} />
+              ))}
+              {w.notes ? <div className="workout-notes">{w.notes}</div> : null}
+            </>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function WorkoutBlock({ block: b }: { block: ApiWorkoutBlock }) {
+  // Metcon/cardio facts that live on the block itself, in display order.
+  const facts = [
+    b.scheme ? cap(b.scheme.replace(/_/g, " ")) : null,
+    b.rounds != null ? `${b.rounds} rounds` : null,
+    b.timeCap ? `cap ${b.timeCap}` : null,
+    b.distance,
+    b.duration,
+    b.pace,
+    b.result ? `→ ${b.result}${b.rx ? " Rx" : ""}` : null,
+    b.avgHr != null ? `♥ ${b.avgHr}${b.maxHr != null ? `/${b.maxHr}` : ""}` : null,
+    b.rpe != null ? `RPE ${b.rpe}` : null,
+  ].filter(Boolean);
+
+  return (
+    <div className="block">
+      <div className="block-head">
+        <span className="block-type">{cap(b.blockType)}</span>
+        {facts.length > 0 ? <span className="block-facts">{facts.join(" · ")}</span> : null}
+      </div>
+      {b.movements.map((mv, i) => (
+        <div className="mv" key={i}>
+          <div className="mv-name">
+            {mv.name}
+            {mv.prescription ? <span className="mv-rx"> {mv.prescription}</span> : null}
+            {mv.load ? <span className="mv-rx"> @ {mv.load}</span> : null}
+          </div>
+          {mv.sets.length > 0 ? (
+            <div className="sets">
+              {mv.sets.map((s) => (
+                <span
+                  className={`set${s.isWarmup ? " warmup" : ""}${s.isFailure ? " failure" : ""}`}
+                  key={s.setNumber}
+                  title={s.isWarmup ? "Warm-up set" : undefined}
+                >
+                  {s.load ? `${s.load} × ${s.reps ?? "—"}` : `${s.reps ?? "—"} reps`}
+                  {s.rpe != null ? ` @${s.rpe}` : ""}
+                  {s.isFailure ? " ✗" : ""}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ))}
+      {b.notes ? <div className="workout-notes">{b.notes}</div> : null}
+    </div>
+  );
+}
+
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function remainingLabel(eaten: number, target: number): string {

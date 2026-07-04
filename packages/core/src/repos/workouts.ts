@@ -361,21 +361,8 @@ export interface RecentWorkout {
   muscleGroups: string[];
 }
 
-/** Sessions in the trailing `days` window, newest first, with muscle groups. */
-export async function getRecentWorkouts(
-  db: Db,
-  ctx: UserCtx,
-  days = 10,
-  now: Date = new Date(),
-): Promise<RecentWorkout[]> {
-  const since = new Date(now.getTime() - days * 24 * 3600 * 1000);
-  const sinceDate = localDateOf(since, ctx.timezone);
-  const sessions = await db
-    .select()
-    .from(workoutSessions)
-    .where(and(eq(workoutSessions.userId, ctx.userId), gte(workoutSessions.localDate, sinceDate)))
-    .orderBy(desc(workoutSessions.startedAt));
-
+/** Attach block types, movement names, and muscle groups to each session. */
+async function enrichSessions(db: Db, sessions: WorkoutSession[]): Promise<RecentWorkout[]> {
   const result: RecentWorkout[] = [];
   for (const s of sessions) {
     const blocks = await db
@@ -402,6 +389,179 @@ export async function getRecentWorkouts(
     });
   }
   return result;
+}
+
+/** Sessions in the trailing `days` window, newest first, with muscle groups. */
+export async function getRecentWorkouts(
+  db: Db,
+  ctx: UserCtx,
+  days = 10,
+  now: Date = new Date(),
+): Promise<RecentWorkout[]> {
+  const since = new Date(now.getTime() - days * 24 * 3600 * 1000);
+  const sinceDate = localDateOf(since, ctx.timezone);
+  const sessions = await db
+    .select()
+    .from(workoutSessions)
+    .where(and(eq(workoutSessions.userId, ctx.userId), gte(workoutSessions.localDate, sinceDate)))
+    .orderBy(desc(workoutSessions.startedAt));
+
+  return enrichSessions(db, sessions);
+}
+
+/** All sessions logged on a single local date, newest first, with muscle groups. */
+export async function getDayWorkouts(
+  db: Db,
+  ctx: UserCtx,
+  date: string,
+): Promise<RecentWorkout[]> {
+  const sessions = await db
+    .select()
+    .from(workoutSessions)
+    .where(and(eq(workoutSessions.userId, ctx.userId), eq(workoutSessions.localDate, date)))
+    .orderBy(desc(workoutSessions.startedAt));
+
+  return enrichSessions(db, sessions);
+}
+
+/** One strength set as stored — load canonical (kg), converted at the edge. */
+export interface WorkoutSetDetail {
+  setNumber: number;
+  reps: number | null;
+  loadKg: number | null;
+  rpe: number | null;
+  isWarmup: boolean;
+  isFailure: boolean;
+  notes: string | null;
+}
+
+export interface WorkoutMovementDetail {
+  name: string;
+  prescription: string | null;
+  repsPerRound: number | null;
+  loadKg: number | null; // metcon load
+  distanceMPerRound: number | null;
+  sets: WorkoutSetDetail[];
+}
+
+export interface WorkoutBlockDetail {
+  seq: number;
+  blockType: string;
+  // metcon structure + result
+  scheme: string | null;
+  roundsPlanned: number | null;
+  timeCapS: number | null;
+  intervalS: number | null;
+  resultTimeS: number | null;
+  resultRounds: number | null;
+  resultReps: number | null;
+  rx: boolean | null;
+  // cardio detail (canonical units)
+  distanceM: number | null;
+  durationS: number | null;
+  avgPaceSPerKm: number | null;
+  avgHr: number | null;
+  maxHr: number | null;
+  elevationGainM: number | null;
+  rpe: number | null;
+  notes: string | null;
+  movements: WorkoutMovementDetail[];
+}
+
+export interface WorkoutDetail {
+  session: WorkoutSession;
+  blocks: WorkoutBlockDetail[];
+}
+
+/**
+ * Full block-by-block, set-by-set detail for one session. Physical quantities
+ * stay canonical (kg, meters, seconds); the adapter converts for display
+ * (SPEC §3). Returns null when the session isn't the caller's.
+ */
+export async function getWorkoutDetail(
+  db: Db,
+  ctx: UserCtx,
+  sessionId: string,
+): Promise<WorkoutDetail | null> {
+  const [session] = await db
+    .select()
+    .from(workoutSessions)
+    .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, ctx.userId)))
+    .limit(1);
+  if (!session) return null;
+
+  const blocks = await db
+    .select()
+    .from(workoutBlocks)
+    .where(eq(workoutBlocks.sessionId, session.id))
+    .orderBy(asc(workoutBlocks.seq));
+
+  const detailBlocks: WorkoutBlockDetail[] = [];
+  for (const b of blocks) {
+    const bms = await db
+      .select({
+        bmId: blockMovements.id,
+        name: movements.name,
+        prescription: blockMovements.prescription,
+        repsPerRound: blockMovements.repsPerRound,
+        loadKg: blockMovements.loadKg,
+        distanceMPerRound: blockMovements.distanceMPerRound,
+        seq: blockMovements.seq,
+      })
+      .from(blockMovements)
+      .innerJoin(movements, eq(blockMovements.movementId, movements.id))
+      .where(eq(blockMovements.blockId, b.id))
+      .orderBy(asc(blockMovements.seq));
+
+    const movementDetails: WorkoutMovementDetail[] = [];
+    for (const bm of bms) {
+      const sets = await db
+        .select()
+        .from(strengthSets)
+        .where(eq(strengthSets.blockMovementId, bm.bmId))
+        .orderBy(asc(strengthSets.setNumber));
+      movementDetails.push({
+        name: bm.name,
+        prescription: bm.prescription ?? null,
+        repsPerRound: bm.repsPerRound ?? null,
+        loadKg: bm.loadKg ?? null,
+        distanceMPerRound: bm.distanceMPerRound ?? null,
+        sets: sets.map((s) => ({
+          setNumber: s.setNumber,
+          reps: s.reps ?? null,
+          loadKg: s.loadKg ?? null,
+          rpe: s.rpe ?? null,
+          isWarmup: s.isWarmup,
+          isFailure: s.isFailure,
+          notes: s.notes ?? null,
+        })),
+      });
+    }
+
+    detailBlocks.push({
+      seq: b.seq,
+      blockType: b.blockType,
+      scheme: b.scheme ?? null,
+      roundsPlanned: b.roundsPlanned ?? null,
+      timeCapS: b.timeCapS ?? null,
+      intervalS: b.intervalS ?? null,
+      resultTimeS: b.resultTimeS ?? null,
+      resultRounds: b.resultRounds ?? null,
+      resultReps: b.resultReps ?? null,
+      rx: b.rx ?? null,
+      distanceM: b.distanceM ?? null,
+      durationS: b.durationS ?? null,
+      avgPaceSPerKm: b.avgPaceSPerKm ?? null,
+      avgHr: b.avgHr ?? null,
+      maxHr: b.maxHr ?? null,
+      elevationGainM: b.elevationGainM ?? null,
+      rpe: b.rpe ?? null,
+      notes: b.notes ?? null,
+      movements: movementDetails,
+    });
+  }
+
+  return { session, blocks: detailBlocks };
 }
 
 export interface MovementHistorySet {

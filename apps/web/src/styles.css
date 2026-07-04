@@ -303,6 +303,119 @@ body {
   padding: 6px 0;
 }
 
+/* --- expandable workout row ---------------------------------------------------- */
+
+.workout-item {
+  border-top: 1px solid var(--hairline);
+}
+
+.workout-item:first-child {
+  border-top: none;
+}
+
+/* The tappable summary reuses .meal-row's flex layout but is a <button>. */
+.meal-row.workout-head {
+  width: 100%;
+  border-top: none;
+  background: none;
+  border-radius: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.workout-head .caret {
+  display: inline-block;
+  color: var(--ink-muted);
+  margin-right: 6px;
+  transition: transform 0.12s ease;
+}
+
+.workout-head .caret.open {
+  transform: rotate(90deg);
+}
+
+.workout-detail {
+  padding: 2px 0 10px 18px;
+}
+
+.workout-detail .block {
+  margin-top: 8px;
+}
+
+.block-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.block-type {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.block-facts {
+  font-size: 12px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.mv {
+  margin: 3px 0 3px 2px;
+}
+
+.mv-name {
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.mv-rx {
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
+.sets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-top: 3px;
+}
+
+.set {
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  background: var(--page);
+  border: 1px solid var(--hairline);
+  border-radius: 5px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+.set.warmup {
+  color: var(--ink-muted);
+  border-style: dashed;
+}
+
+.set.failure {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.workout-notes {
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  font-style: italic;
+  margin-top: 6px;
+}
+
 /* --- day stepper --------------------------------------------------------------- */
 
 .day-nav {
