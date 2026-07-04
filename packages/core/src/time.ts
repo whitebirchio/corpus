@@ -15,6 +15,22 @@ export function localDateOf(instant: Date, timeZone: string): string {
   }).format(instant);
 }
 
+/** The HH:mm wall-clock time of `instant` in `timeZone` (24-hour). */
+export function localTimeOf(instant: Date, timeZone: string): string {
+  const parts: Record<string, string> = {};
+  for (const p of new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(instant)) {
+    parts[p.type] = p.value;
+  }
+  // en-GB with hour12:false can render midnight as "24"; normalize to "00".
+  const hh = parts.hour === "24" ? "00" : parts.hour;
+  return `${hh}:${parts.minute}`;
+}
+
 /** Milliseconds that `timeZone` is ahead of UTC at `at`. */
 function tzOffsetMs(at: Date, timeZone: string): number {
   const dtf = new Intl.DateTimeFormat("en-US", {

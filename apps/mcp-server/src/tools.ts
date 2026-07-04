@@ -22,6 +22,14 @@ import {
   logRegimenEventShape,
   logWorkout,
   logWorkoutShape,
+  updateMeal,
+  updateMealShape,
+  deleteMeal,
+  deleteMealShape,
+  updateWorkout,
+  updateWorkoutShape,
+  deleteWorkout,
+  deleteWorkoutShape,
   archiveInsight,
   saveInsight,
   saveInsightShape,
@@ -165,6 +173,94 @@ export function registerTools(
         }
         const result = await run((db, c) => logMeal(db, c, parsed));
         return ok(result);
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  const EDIT_SCOPE_NOTE =
+    "Only conversation-logged records can be edited or deleted; imported records (Garmin, MacroFactor) " +
+    "return status 'not_editable' — surface that to the user rather than retrying. Status 'not_found' means the id was wrong.";
+
+  server.registerTool(
+    "update_meal",
+    {
+      title: "Edit a meal",
+      description:
+        "Correct a previously logged meal. Get its id from get_daily_summary (nutrition.meals[].id). " +
+        "All fields are optional and patched in place (omitted = unchanged). " +
+        "To fix macros: pass `items` to REPLACE the itemized breakdown (totals are recomputed), or pass `totals` to set the numbers directly. " +
+        "Passing `totals` on an itemized meal switches it to totals and drops its items. Do not pass both. " +
+        EDIT_SCOPE_NOTE,
+      inputSchema: updateMealShape,
+    },
+    async (input) => {
+      try {
+        const parsed = z
+          .object(updateMealShape)
+          .refine((m) => !(m.items && m.totals), { message: "Provide items or totals, not both" })
+          .parse(input);
+        return ok(await run((db, c) => updateMeal(db, c, parsed)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "delete_meal",
+    {
+      title: "Delete a meal",
+      description:
+        "Delete a logged meal and its items. Get the id from get_daily_summary (nutrition.meals[].id). " +
+        "Confirm with the user before calling — this is destructive. " +
+        EDIT_SCOPE_NOTE,
+      inputSchema: deleteMealShape,
+    },
+    async ({ mealId }) => {
+      try {
+        return ok(await run((db, c) => deleteMeal(db, c, mealId)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "update_workout",
+    {
+      title: "Edit a workout",
+      description:
+        "Correct session-level fields of a logged workout: title, date/time, sessionRpe, duration (unit-tagged), avgHr, maxHr, calories, notes. " +
+        "Get the id from get_recent_workouts (session.id) or get_daily_summary (recentWorkouts[].sessionId). " +
+        "This does NOT edit blocks, movements, or sets — to fix reps or weights, delete the workout and re-log it. " +
+        EDIT_SCOPE_NOTE,
+      inputSchema: updateWorkoutShape,
+    },
+    async (input) => {
+      try {
+        return ok(await run((db, c) => updateWorkout(db, c, input)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "delete_workout",
+    {
+      title: "Delete a workout",
+      description:
+        "Delete a logged workout session and all its blocks, movements, and sets. " +
+        "Get the id from get_recent_workouts (session.id) or get_daily_summary (recentWorkouts[].sessionId). " +
+        "Confirm with the user before calling — this is destructive. " +
+        EDIT_SCOPE_NOTE,
+      inputSchema: deleteWorkoutShape,
+    },
+    async ({ sessionId }) => {
+      try {
+        return ok(await run((db, c) => deleteWorkout(db, c, sessionId)));
       } catch (e) {
         return err(e);
       }

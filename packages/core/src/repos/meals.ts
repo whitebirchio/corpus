@@ -1,8 +1,12 @@
 import { and, desc, eq, lte } from "drizzle-orm";
 import type { Db, UserCtx } from "../db/client.js";
 import { mealItems, meals, nutritionTargets } from "../db/schema.js";
-import type { LogMealInput, SetNutritionTargetsInput } from "../schemas/inputs.js";
-import { NOMINAL_MEAL_TIMES, todayIn, zonedToUtc } from "../time.js";
+import type {
+  LogMealInput,
+  SetNutritionTargetsInput,
+  UpdateMealInput,
+} from "../schemas/inputs.js";
+import { localTimeOf, NOMINAL_MEAL_TIMES, todayIn, zonedToUtc } from "../time.js";
 
 export type Meal = typeof meals.$inferSelect;
 export type MealItem = typeof mealItems.$inferSelect;
@@ -199,6 +203,114 @@ export async function getMealWithItems(
     .where(and(eq(mealItems.userId, ctx.userId), eq(mealItems.mealId, mealId)))
     .orderBy(mealItems.seq);
   return { meal, items };
+}
+
+export type UpdateMealResult =
+  | { status: "updated"; meal: Meal; items: MealItem[] }
+  | { status: "not_found" }
+  | { status: "not_editable"; source: string };
+
+export type DeleteMealResult =
+  | { status: "deleted"; mealId: string }
+  | { status: "not_found" }
+  | { status: "not_editable"; source: string };
+
+/**
+ * Correct a conversationally-logged meal. Only `source = "conversation"` meals
+ * are editable — imported records (MacroFactor/Garmin) are refused so a re-import
+ * can't overwrite the edit (specs/03-record-edits/SPEC.md, specs/02-pwa-client §2 #11).
+ * Fields are patched (absent = untouched). Supplying `items` replaces the item
+ * list and recomputes totals; supplying `totals` sets them directly and drops any
+ * items (input validation forbids sending both).
+ */
+export async function updateMeal(
+  db: Db,
+  ctx: UserCtx,
+  input: UpdateMealInput,
+): Promise<UpdateMealResult> {
+  const existing = await getMealWithItems(db, ctx, input.mealId);
+  if (!existing) return { status: "not_found" };
+  if (existing.meal.source !== "conversation") {
+    return { status: "not_editable", source: existing.meal.source };
+  }
+
+  const patch: Partial<typeof meals.$inferInsert> = { updatedAt: new Date() };
+  if (input.mealType !== undefined) patch.mealType = input.mealType;
+  if (input.description !== undefined) patch.description = input.description;
+  if (input.notes !== undefined) patch.notes = input.notes;
+
+  if (input.date !== undefined || input.time !== undefined) {
+    const localDate = input.date ?? existing.meal.localDate;
+    const time = input.time ?? localTimeOf(existing.meal.eatenAt, ctx.timezone);
+    patch.localDate = localDate;
+    patch.eatenAt = zonedToUtc(localDate, time, ctx.timezone);
+  }
+
+  if (input.items !== undefined) {
+    const totals = sumItems(input.items);
+    patch.granularity = "itemized";
+    patch.calories = totals.calories;
+    patch.proteinG = totals.proteinG;
+    patch.carbsG = totals.carbsG;
+    patch.fatG = totals.fatG;
+  } else if (input.totals !== undefined) {
+    patch.granularity = "totals";
+    patch.calories = input.totals.calories;
+    patch.proteinG = input.totals.proteinG;
+    patch.carbsG = input.totals.carbsG;
+    patch.fatG = input.totals.fatG;
+  }
+
+  const updated = await db.transaction(async (tx) => {
+    if (input.items !== undefined || input.totals !== undefined) {
+      // Both paths make the meal's items non-authoritative for `totals` — rebuild.
+      await tx
+        .delete(mealItems)
+        .where(and(eq(mealItems.userId, ctx.userId), eq(mealItems.mealId, input.mealId)));
+      for (const [i, item] of (input.items ?? []).entries()) {
+        await tx.insert(mealItems).values({
+          userId: ctx.userId,
+          mealId: input.mealId,
+          seq: i,
+          name: item.name,
+          quantity: item.quantity,
+          unitNote: item.unitNote,
+          calories: item.calories,
+          proteinG: item.proteinG,
+          carbsG: item.carbsG,
+          fatG: item.fatG,
+          micros: item.micros,
+          estimateConfidence: item.confidence,
+        });
+      }
+    }
+    const rows = await tx
+      .update(meals)
+      .set(patch)
+      .where(and(eq(meals.userId, ctx.userId), eq(meals.id, input.mealId)))
+      .returning();
+    const m = rows[0];
+    if (!m) throw new Error("meals update returned no row");
+    return m;
+  });
+
+  const detail = await getMealWithItems(db, ctx, input.mealId);
+  return { status: "updated", meal: updated, items: detail?.items ?? [] };
+}
+
+/** Delete a conversationally-logged meal; `meal_items` cascade. Imports are refused. */
+export async function deleteMeal(
+  db: Db,
+  ctx: UserCtx,
+  mealId: string,
+): Promise<DeleteMealResult> {
+  const existing = await getMealWithItems(db, ctx, mealId);
+  if (!existing) return { status: "not_found" };
+  if (existing.meal.source !== "conversation") {
+    return { status: "not_editable", source: existing.meal.source };
+  }
+  await db.delete(meals).where(and(eq(meals.userId, ctx.userId), eq(meals.id, mealId)));
+  return { status: "deleted", mealId };
 }
 
 export interface DayNutrition {

@@ -18,6 +18,7 @@ export interface DailySummary {
   metrics: DailyMetrics | null;
   nutrition: DayNutrition;
   recentWorkouts: Array<{
+    sessionId: string;
     date: string;
     title: string | null;
     blockTypes: string[];
@@ -76,6 +77,7 @@ export async function getDailySummary(db: Db, ctx: UserCtx, date?: string): Prom
 
 function mapRecent(w: RecentWorkout): DailySummary["recentWorkouts"][number] {
   return {
+    sessionId: w.session.id,
     date: w.session.localDate,
     title: w.session.title,
     blockTypes: w.blockTypes,

@@ -169,6 +169,29 @@ export const logWorkoutShape = {
 export const logWorkoutInput = z.object(logWorkoutShape);
 export type LogWorkoutInput = z.infer<typeof logWorkoutInput>;
 
+// Session-level edit only — blocks/movements/sets are not editable via MCP; to
+// fix reps/weights, delete and re-log. See specs/03-record-edits/SPEC.md.
+export const updateWorkoutShape = {
+  sessionId: z.uuid().describe("session.id from get_recent_workouts / get_daily_summary"),
+  date: localDate.optional(),
+  time: localTime.optional(),
+  title: z.string().optional(),
+  duration: durationValue.optional(),
+  sessionRpe: z.number().min(1).max(10).optional(),
+  avgHr: z.number().int().positive().optional(),
+  maxHr: z.number().int().positive().optional(),
+  calories: z.number().int().positive().optional(),
+  notes: z.string().optional(),
+};
+export const updateWorkoutInput = z.object(updateWorkoutShape);
+export type UpdateWorkoutInput = z.infer<typeof updateWorkoutInput>;
+
+export const deleteWorkoutShape = {
+  sessionId: z.uuid().describe("session.id from get_recent_workouts / get_daily_summary"),
+};
+export const deleteWorkoutInput = z.object(deleteWorkoutShape);
+export type DeleteWorkoutInput = z.infer<typeof deleteWorkoutInput>;
+
 // --- meals (§5.4) ------------------------------------------------------------
 
 export const mealItemInput = z.object({
@@ -217,6 +240,39 @@ export const logMealInput = z
     message: "Provide items or totals",
   });
 export type LogMealInput = z.infer<typeof logMealInput>;
+
+// Edit/delete target only conversation-logged records; see specs/03-record-edits/SPEC.md.
+export const updateMealShape = {
+  mealId: z.uuid().describe("id from get_daily_summary (nutrition.meals[].id)"),
+  date: localDate.optional(),
+  time: localTime.optional(),
+  mealType: z.enum(["breakfast", "lunch", "dinner", "snack"]).optional(),
+  description: z.string().min(1).optional(),
+  items: z
+    .array(mealItemInput)
+    .optional()
+    .describe("If provided, REPLACES all items and recomputes totals (granularity=itemized)"),
+  totals: z
+    .object({
+      calories: z.number().nonnegative(),
+      proteinG: z.number().nonnegative(),
+      carbsG: z.number().nonnegative(),
+      fatG: z.number().nonnegative(),
+    })
+    .optional()
+    .describe("Direct totals (granularity=totals); on an itemized meal this clears the items"),
+  notes: z.string().optional(),
+};
+export const updateMealInput = z.object(updateMealShape).refine((m) => !(m.items && m.totals), {
+  message: "Provide items or totals, not both",
+});
+export type UpdateMealInput = z.infer<typeof updateMealInput>;
+
+export const deleteMealShape = {
+  mealId: z.uuid().describe("id from get_daily_summary (nutrition.meals[].id)"),
+};
+export const deleteMealInput = z.object(deleteMealShape);
+export type DeleteMealInput = z.infer<typeof deleteMealInput>;
 
 export const setNutritionTargetsShape = {
   effectiveDate: localDate.optional().describe("Defaults to today"),

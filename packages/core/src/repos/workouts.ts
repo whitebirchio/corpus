@@ -7,8 +7,8 @@ import {
   workoutBlocks,
   workoutSessions,
 } from "../db/schema.js";
-import type { LogWorkoutInput } from "../schemas/inputs.js";
-import { localDateOf, todayIn, zonedToUtc } from "../time.js";
+import type { LogWorkoutInput, UpdateWorkoutInput } from "../schemas/inputs.js";
+import { localDateOf, localTimeOf, todayIn, zonedToUtc } from "../time.js";
 import { kgToLb, toKg, toMeters, toSeconds, toSecondsPerKm } from "../units.js";
 import { normalizeMovementName, resolveMovement } from "./movements.js";
 
@@ -274,6 +274,84 @@ async function sessionDetail(
     movementNames = [...new Set(bms.map((r) => r.name))];
   }
   return { blockTypes: blocks.map((b) => b.blockType), movementNames };
+}
+
+export type UpdateWorkoutResult =
+  | { status: "updated"; session: WorkoutSession }
+  | { status: "not_found" }
+  | { status: "not_editable"; source: string };
+
+export type DeleteWorkoutResult =
+  | { status: "deleted"; sessionId: string }
+  | { status: "not_found" }
+  | { status: "not_editable"; source: string };
+
+/**
+ * Edit session-level fields of a conversationally-logged workout. Blocks,
+ * movements, and sets are intentionally not editable here — to fix reps/weights,
+ * delete and re-log (specs/03-record-edits/SPEC.md). Only `source = "conversation"`
+ * sessions are editable; imported (Garmin) sessions are refused so a re-sync can't
+ * clobber the edit.
+ */
+export async function updateWorkout(
+  db: Db,
+  ctx: UserCtx,
+  input: UpdateWorkoutInput,
+): Promise<UpdateWorkoutResult> {
+  const rows = await db
+    .select()
+    .from(workoutSessions)
+    .where(and(eq(workoutSessions.userId, ctx.userId), eq(workoutSessions.id, input.sessionId)));
+  const existing = rows[0];
+  if (!existing) return { status: "not_found" };
+  if (existing.source !== "conversation") {
+    return { status: "not_editable", source: existing.source };
+  }
+
+  const patch: Partial<typeof workoutSessions.$inferInsert> = { updatedAt: new Date() };
+  if (input.title !== undefined) patch.title = input.title;
+  if (input.sessionRpe !== undefined) patch.sessionRpe = Math.round(input.sessionRpe);
+  if (input.avgHr !== undefined) patch.avgHr = input.avgHr;
+  if (input.maxHr !== undefined) patch.maxHr = input.maxHr;
+  if (input.calories !== undefined) patch.calories = input.calories;
+  if (input.notes !== undefined) patch.notes = input.notes;
+  if (input.duration !== undefined) patch.durationS = Math.round(toSeconds(input.duration));
+  if (input.date !== undefined || input.time !== undefined) {
+    const localDate = input.date ?? existing.localDate;
+    const time = input.time ?? localTimeOf(existing.startedAt, ctx.timezone);
+    patch.localDate = localDate;
+    patch.startedAt = zonedToUtc(localDate, time, ctx.timezone);
+  }
+
+  const updatedRows = await db
+    .update(workoutSessions)
+    .set(patch)
+    .where(and(eq(workoutSessions.userId, ctx.userId), eq(workoutSessions.id, input.sessionId)))
+    .returning();
+  const session = updatedRows[0];
+  if (!session) throw new Error("workout_sessions update returned no row");
+  return { status: "updated", session };
+}
+
+/** Delete a conversationally-logged workout; blocks/movements/sets cascade. Imports are refused. */
+export async function deleteWorkout(
+  db: Db,
+  ctx: UserCtx,
+  sessionId: string,
+): Promise<DeleteWorkoutResult> {
+  const rows = await db
+    .select({ source: workoutSessions.source })
+    .from(workoutSessions)
+    .where(and(eq(workoutSessions.userId, ctx.userId), eq(workoutSessions.id, sessionId)));
+  const existing = rows[0];
+  if (!existing) return { status: "not_found" };
+  if (existing.source !== "conversation") {
+    return { status: "not_editable", source: existing.source };
+  }
+  await db
+    .delete(workoutSessions)
+    .where(and(eq(workoutSessions.userId, ctx.userId), eq(workoutSessions.id, sessionId)));
+  return { status: "deleted", sessionId };
 }
 
 export interface RecentWorkout {
