@@ -1,9 +1,13 @@
-# Nightly Garmin Connect → Corpus sync (specs/01-initial-platform/SPEC.md §8.4).
+# Garmin Connect → Corpus sync (specs/01-initial-platform/SPEC.md §8.4).
 #
 # Runs the unofficial-API pull in real Python (the Workers sandbox can't —
-# garminconnect needs raw sockets). ~1-2 min/night against a 2,000-min/month
-# free tier. Failure emails come from GitHub by default; a missed night
-# self-heals because every run pulls a trailing 7-day window.
+# garminconnect needs raw sockets). Two cadences against a 2,000-min/month
+# free tier:
+#   - every 4h: trailing 1-day window, a cheap same-day refresh.
+#   - nightly (30 09 UTC): trailing 7-day window, the self-healing catch-all
+#     that covers a missed run or data Garmin backfilled late.
+# Both are idempotent re-runs (see packages/core/src/import/garmin.ts), so
+# overlapping windows are safe. Failure emails come from GitHub by default.
 #
 # Secrets: CORPUS_INGEST_SECRET (mirrors the worker's GARMIN_INGEST_SECRET).
 # Garmin credentials are NOT stored here — tokens are bootstrapped locally
@@ -12,7 +16,8 @@ name: garmin-sync
 
 on:
   schedule:
-    - cron: "30 09 * * *" # 05:30/06:30 America/New_York depending on DST
+    - cron: "0 */4 * * *" # same-day refresh, trailing 1 day
+    - cron: "30 09 * * *" # nightly self-heal, trailing 7 days — 05:30/06:30 America/New_York depending on DST
   workflow_dispatch:
     inputs:
       days:
@@ -33,7 +38,7 @@ jobs:
           cache: pip
           cache-dependency-path: apps/garmin-sync/requirements.txt
       - run: pip install -r apps/garmin-sync/requirements.txt
-      - run: python apps/garmin-sync/sync.py pull --days "${{ inputs.days || '7' }}"
+      - run: python apps/garmin-sync/sync.py pull --days "${{ inputs.days || (github.event.schedule == '30 09 * * *' && '7' || '1') }}"
         env:
           CORPUS_BASE_URL: https://corpus-mcp.whitebirch.workers.dev
           CORPUS_INGEST_SECRET: ${{ secrets.CORPUS_INGEST_SECRET }}
