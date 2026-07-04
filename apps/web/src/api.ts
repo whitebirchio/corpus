@@ -124,15 +124,25 @@ export interface WorkoutDetailResponse {
 export interface ApiDailyMetrics {
   sleepScore: number | null;
   sleepDurationS: number | null;
+  sleepDeepS: number | null;
+  sleepLightS: number | null;
+  sleepRemS: number | null;
+  sleepAwakeS: number | null;
   restingHr: number | null;
   hrvMs: number | null;
   steps: number | null;
   bodyBattery: number | null;
   bodyBatteryLow: number | null;
   stressScore: number | null;
+  respirationAvg: number | null;
+  spo2Avg: number | null;
   activeKcal: number | null;
   bmrKcal: number | null;
+  intensityMinutesModerate: number | null;
+  intensityMinutesVigorous: number | null;
   trainingReadiness: number | null;
+  vo2max: number | null;
+  energySubjective: number | null;
 }
 
 export interface DayMetricsResponse {
@@ -140,12 +150,33 @@ export interface DayMetricsResponse {
   metrics: ApiDailyMetrics | null;
 }
 
+export interface ApiBodyMeasurement {
+  /** Local date of the reading; may predate the requested day. */
+  measuredOn: string;
+  weight: number;
+  weightUnit: "lb" | "kg";
+  bodyFatPct: number | null;
+}
+
+export interface DayBodyResponse {
+  date: string;
+  body: ApiBodyMeasurement | null;
+}
+
 export type TrendMetric =
   | "calories_in"
   | "body_battery"
   | "resting_hr"
   | "distance_run"
-  | "calories_out";
+  | "calories_out"
+  | "body_weight"
+  | "body_fat"
+  | "sleep"
+  | "hrv"
+  | "steps"
+  | "stress"
+  | "strength_volume"
+  | "workout_frequency";
 export type TrendBucket = "day" | "week" | "month";
 
 export interface TrendPoint {
@@ -202,6 +233,8 @@ export const api = {
   workoutDetail: (id: string) => get<WorkoutDetailResponse>(`/api/workouts/${encodeURIComponent(id)}`),
   dayMetrics: (date: string) =>
     get<DayMetricsResponse>(`/api/days/${encodeURIComponent(date)}/metrics`),
+  dayBody: (date: string) =>
+    get<DayBodyResponse>(`/api/days/${encodeURIComponent(date)}/body`),
   trend: (metric: TrendMetric, from: string, to: string, bucket: TrendBucket) =>
     get<TrendResult>(
       `/api/trends/${metric}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&bucket=${bucket}`,

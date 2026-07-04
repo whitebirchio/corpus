@@ -16,7 +16,15 @@
 import { and, eq, gte, isNotNull, lte, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import type { Db, UserCtx } from "../db/client.js";
-import { dailyMetrics, meals, workoutBlocks, workoutSessions } from "../db/schema.js";
+import {
+  blockMovements,
+  bodyMeasurements,
+  dailyMetrics,
+  meals,
+  strengthSets,
+  workoutBlocks,
+  workoutSessions,
+} from "../db/schema.js";
 import type { TrendBucket, TrendMetric, TrendQuery } from "../schemas/trends.js";
 
 export interface TrendPoint {
@@ -154,6 +162,44 @@ export async function getTrend(db: Db, ctx: UserCtx, query: TrendQuery): Promise
         { key: "bmr", agg: "sum", unit: "kcal", col: dailyMetrics.bmrKcal },
       ]);
       break;
+    case "sleep":
+      series = await fromDailyMetrics(db, ctx, from, to, bucket, starts, [
+        // Canonical seconds; the adapter renders as hours (SPEC §3).
+        { key: "sleep", agg: "avg", unit: "s", col: dailyMetrics.sleepDurationS },
+      ]);
+      break;
+    case "hrv":
+      series = await fromDailyMetrics(db, ctx, from, to, bucket, starts, [
+        { key: "hrv", agg: "avg", unit: "ms", col: dailyMetrics.hrvMs },
+      ]);
+      break;
+    case "steps":
+      series = await fromDailyMetrics(db, ctx, from, to, bucket, starts, [
+        { key: "steps", agg: "sum", unit: "steps", col: dailyMetrics.steps },
+      ]);
+      break;
+    case "stress":
+      series = await fromDailyMetrics(db, ctx, from, to, bucket, starts, [
+        { key: "stress", agg: "avg", unit: "score", col: dailyMetrics.stressScore },
+      ]);
+      break;
+    case "body_weight":
+      series = await fromBodyMeasurements(db, ctx, from, to, bucket, starts, [
+        // Canonical kg; the adapter converts to the user's unit (SPEC §3).
+        { key: "weight", unit: "kg", col: bodyMeasurements.weightKg },
+      ]);
+      break;
+    case "body_fat":
+      series = await fromBodyMeasurements(db, ctx, from, to, bucket, starts, [
+        { key: "body_fat", unit: "%", col: bodyMeasurements.bodyFatPct },
+      ]);
+      break;
+    case "strength_volume":
+      series = await strengthVolume(db, ctx, from, to, bucket, starts);
+      break;
+    case "workout_frequency":
+      series = await workoutFrequency(db, ctx, from, to, bucket, starts);
+      break;
   }
   return { metric, bucket, from, to, series };
 }
@@ -262,4 +308,123 @@ async function fromDailyMetrics(
     );
     return toSeries(s.key, s.agg, s.unit, starts, byBucket);
   });
+}
+
+interface BodyMeasurementSeriesSpec {
+  key: string;
+  unit: string;
+  col: AnyPgColumn; // a numeric column of body_measurements
+}
+
+/**
+ * body_measurements-backed series (weight, body-fat %). Unlike daily_metrics,
+ * this table has no local_date column and can hold several readings per day
+ * (e.g. a scale sync plus a DEXA), so we derive the local date from
+ * measured_at in the user's timezone and average all readings in the bucket.
+ * daysWithData counts distinct local dates *with this column present*, so a
+ * weight-only reading doesn't inflate the body-fat series' day-weighting.
+ */
+async function fromBodyMeasurements(
+  db: Db,
+  ctx: UserCtx,
+  from: string,
+  to: string,
+  bucket: TrendBucket,
+  starts: string[],
+  specs: BodyMeasurementSeriesSpec[],
+): Promise<TrendSeries[]> {
+  const localDate = sql<string>`((${bodyMeasurements.measuredAt} at time zone ${ctx.timezone})::date)`;
+  const b = bucketExpr(localDate, bucket);
+  const selection: Record<string, SQL | SQL.Aliased> = { bucket: b.as("bucket") };
+  for (const s of specs) {
+    selection[`${s.key}__value`] = sql`avg(${s.col})::double precision`;
+    selection[`${s.key}__days`] = sql`count(distinct case when ${s.col} is not null then ${localDate} end)::int`;
+  }
+  const rows = (await db
+    .select(selection)
+    .from(bodyMeasurements)
+    .where(and(eq(bodyMeasurements.userId, ctx.userId), gte(localDate, from), lte(localDate, to)))
+    .groupBy(sql`1`)) as unknown as Array<Record<string, unknown>>;
+
+  return specs.map((s) => {
+    const byBucket = new Map(
+      rows.map((r) => [
+        r.bucket as string,
+        { value: r[`${s.key}__value`] as number | null, days: r[`${s.key}__days`] as number },
+      ]),
+    );
+    return toSeries(s.key, "avg", s.unit, starts, byBucket);
+  });
+}
+
+/**
+ * Working-set tonnage (canonical kg): sum of reps × load across strength sets,
+ * excluding warm-ups. Joins sets → block_movements → blocks → sessions to reach
+ * the session's local_date. Bucketed by session date, summed within the bucket.
+ */
+async function strengthVolume(
+  db: Db,
+  ctx: UserCtx,
+  from: string,
+  to: string,
+  bucket: TrendBucket,
+  starts: string[],
+): Promise<TrendSeries[]> {
+  const b = bucketExpr(workoutSessions.localDate, bucket);
+  const rows = await db
+    .select({
+      bucket: b.as("bucket"),
+      value: sql<number | null>`sum(${strengthSets.reps} * ${strengthSets.loadKg})::double precision`,
+      days: sql<number>`count(distinct ${workoutSessions.localDate})::int`,
+    })
+    .from(strengthSets)
+    .innerJoin(blockMovements, eq(strengthSets.blockMovementId, blockMovements.id))
+    .innerJoin(workoutBlocks, eq(blockMovements.blockId, workoutBlocks.id))
+    .innerJoin(workoutSessions, eq(workoutBlocks.sessionId, workoutSessions.id))
+    .where(
+      and(
+        eq(strengthSets.userId, ctx.userId),
+        eq(strengthSets.isWarmup, false),
+        isNotNull(strengthSets.reps),
+        isNotNull(strengthSets.loadKg),
+        gte(workoutSessions.localDate, from),
+        lte(workoutSessions.localDate, to),
+      ),
+    )
+    .groupBy(sql`1`);
+  const byBucket = new Map(rows.map((r) => [r.bucket, { value: r.value, days: r.days }]));
+  return [toSeries("volume", "sum", "kg", starts, byBucket)];
+}
+
+/**
+ * Training frequency: distinct workout sessions per bucket. Summed (a day is
+ * 0/1/2… sessions); daysWithData is the count of distinct training days so the
+ * tooltip's per-day average reads as sessions per active day.
+ */
+async function workoutFrequency(
+  db: Db,
+  ctx: UserCtx,
+  from: string,
+  to: string,
+  bucket: TrendBucket,
+  starts: string[],
+): Promise<TrendSeries[]> {
+  const b = bucketExpr(workoutSessions.localDate, bucket);
+  const rows = await db
+    .select({
+      bucket: b.as("bucket"),
+      value: sql<number | null>`count(*)::double precision`,
+      days: sql<number>`count(distinct ${workoutSessions.localDate})::int`,
+    })
+    .from(workoutSessions)
+    .where(
+      and(
+        eq(workoutSessions.userId, ctx.userId),
+        gte(workoutSessions.localDate, from),
+        lte(workoutSessions.localDate, to),
+      ),
+    )
+    .groupBy(sql`1`);
+  const byBucket = new Map(rows.map((r) => [r.bucket, { value: r.value, days: r.days }]));
+  return [toSeries("sessions", "sum", "sessions", starts, byBucket)];
 }

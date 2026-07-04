@@ -15,6 +15,7 @@ import {
   formatDuration,
   formatMass,
   formatPace,
+  getBodyMeasurementAsOf,
   getDailyMetrics,
   getDayNutrition,
   getDayWorkouts,
@@ -22,6 +23,7 @@ import {
   getTrend,
   getUser,
   getWorkoutDetail,
+  kgToLb,
   localDate as localDateSchema,
   metersToMiles,
   todayIn,
@@ -157,6 +159,23 @@ apiRoutes.get("/days/:date/metrics", async (c) => {
   return c.json({ date, metrics: metrics ?? null });
 });
 
+apiRoutes.get("/days/:date/body", async (c) => {
+  const date = parseDateParam(c);
+  const body = await runAsUser(c, async (db, ctx, user) => {
+    const m = await getBodyMeasurementAsOf(db, ctx, date);
+    if (!m) return null;
+    // Canonical kg → the user's unit at the edge (SPEC §3).
+    const imperial = user.unitPreference === "imperial";
+    return {
+      measuredOn: m.measuredOn,
+      weight: r2(imperial ? kgToLb(m.weightKg) : m.weightKg),
+      weightUnit: imperial ? "lb" : "kg",
+      bodyFatPct: m.bodyFatPct,
+    };
+  });
+  return c.json({ date, body });
+});
+
 apiRoutes.get("/meals/:id", async (c) => {
   const id = c.req.param("id");
   if (!z.uuid().safeParse(id).success) throw new ApiError(400, "Invalid meal id");
@@ -253,21 +272,43 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
  * Canonical → display conversion at the adapter edge, never in core
- * (SPEC §3). Only distance carries a unit worth converting; kcal/bpm/score
- * pass through.
+ * (SPEC §3). Distance (m), mass (kg) and sleep (s) get converted; kcal, bpm,
+ * ms, %, score, steps and sessions pass through unchanged.
  */
 function displayUnits(trend: TrendResult, pref: "imperial" | "metric"): TrendResult {
   return {
     ...trend,
     series: trend.series.map((s) => {
-      if (s.unit !== "m") return s;
-      const unit = pref === "imperial" ? "mi" : "km";
-      const convert = (m: number) => (pref === "imperial" ? metersToMiles(m) : m / 1000);
+      const conv = converterFor(s.unit, pref);
+      if (!conv) return s;
       return {
         ...s,
-        unit,
-        points: s.points.map((p) => ({ ...p, value: p.value == null ? null : r2(convert(p.value)) })),
+        unit: conv.unit,
+        points: s.points.map((p) => ({
+          ...p,
+          value: p.value == null ? null : r2(conv.convert(p.value)),
+        })),
       };
     }),
   };
+}
+
+/** The display unit + conversion for a canonical unit, or null to pass through. */
+function converterFor(
+  unit: string,
+  pref: "imperial" | "metric",
+): { unit: string; convert: (v: number) => number } | null {
+  switch (unit) {
+    case "m":
+      return pref === "imperial"
+        ? { unit: "mi", convert: metersToMiles }
+        : { unit: "km", convert: (m) => m / 1000 };
+    case "kg":
+      return pref === "imperial" ? { unit: "lb", convert: kgToLb } : null;
+    case "s":
+      // Sleep duration reads as hours regardless of unit system.
+      return { unit: "h", convert: (v) => v / 3600 };
+    default:
+      return null;
+  }
 }

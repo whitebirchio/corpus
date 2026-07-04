@@ -8,10 +8,12 @@ import {
 } from "../api.js";
 import {
   addDays,
+  fmtBucket,
   fmtDate,
   fmtDuration,
   fmtGrams,
   fmtInt,
+  fmtMetric,
   fmtTime,
   MEAL_TYPE_LABEL,
 } from "../format.js";
@@ -27,11 +29,22 @@ export function Today({ me }: { me: MeResponse }) {
   const nutrition = useData(() => api.dayNutrition(date), [date]);
   const workouts = useData(() => api.dayWorkouts(date), [date]);
   const metrics = useData(() => api.dayMetrics(date), [date]);
+  const body = useData(() => api.dayBody(date), [date]);
 
   const day = nutrition.data;
   const sessions = workouts.data?.workouts ?? null;
   const m = metrics.data?.metrics ?? null;
+  const b = body.data?.body ?? null;
   const isToday = date === me.today;
+  // Weight is logged sporadically; label the tile with the reading's date when
+  // it's carried forward from an earlier day.
+  const weightLabel = b && b.measuredOn !== date ? `Weight · ${fmtBucket(b.measuredOn, "day")}` : "Weight";
+  // Garmin counts vigorous minutes double, but we show the raw sum of logged
+  // moderate + vigorous; render only when the watch reported either.
+  const intensityMin =
+    m && (m.intensityMinutesModerate != null || m.intensityMinutesVigorous != null)
+      ? (m.intensityMinutesModerate ?? 0) + (m.intensityMinutesVigorous ?? 0)
+      : null;
 
   return (
     <>
@@ -120,27 +133,57 @@ export function Today({ me }: { me: MeResponse }) {
         )}
       </section>
 
-      {m ? (
-        <div className={`tile-grid${metrics.stale ? " stale" : ""}`}>
-          {m.bodyBattery != null ? (
+      {m || b ? (
+        <div className={`tile-grid${metrics.stale || body.stale ? " stale" : ""}`}>
+          {b ? (
+            <StatTile label={weightLabel} value={fmtMetric(b.weight, b.weightUnit)} suffix={` ${b.weightUnit}`} />
+          ) : null}
+          {b?.bodyFatPct != null ? (
+            <StatTile label="Body fat" value={fmtMetric(b.bodyFatPct, "%")} suffix="%" />
+          ) : null}
+          {m?.bodyBattery != null ? (
             <StatTile
               label="Body Battery"
               value={String(m.bodyBattery)}
               suffix={m.bodyBatteryLow != null ? ` / ${m.bodyBatteryLow} low` : undefined}
             />
           ) : null}
-          {m.restingHr != null ? (
+          {m?.restingHr != null ? (
             <StatTile label="Resting HR" value={String(m.restingHr)} suffix=" bpm" />
           ) : null}
-          {m.steps != null ? <StatTile label="Steps" value={fmtInt(m.steps)} /> : null}
-          {m.activeKcal != null ? (
+          {m?.steps != null ? <StatTile label="Steps" value={fmtInt(m.steps)} /> : null}
+          {m?.activeKcal != null ? (
             <StatTile label="Active burn" value={fmtInt(m.activeKcal)} suffix=" kcal" />
           ) : null}
-          {m.sleepScore != null ? (
+          {fmtDuration(m?.sleepDurationS ?? null) != null ? (
+            <StatTile label="Sleep" value={fmtDuration(m?.sleepDurationS ?? null)!} />
+          ) : null}
+          {m?.sleepScore != null ? (
             <StatTile label="Sleep score" value={String(m.sleepScore)} />
           ) : null}
-          {m.trainingReadiness != null ? (
+          {m?.trainingReadiness != null ? (
             <StatTile label="Readiness" value={String(m.trainingReadiness)} />
+          ) : null}
+          {m?.hrvMs != null ? (
+            <StatTile label="HRV" value={fmtInt(m.hrvMs)} suffix=" ms" />
+          ) : null}
+          {m?.stressScore != null ? (
+            <StatTile label="Stress" value={String(m.stressScore)} />
+          ) : null}
+          {m?.spo2Avg != null ? (
+            <StatTile label="SpO₂" value={String(m.spo2Avg)} suffix="%" />
+          ) : null}
+          {m?.respirationAvg != null ? (
+            <StatTile label="Respiration" value={fmtInt(m.respirationAvg)} suffix=" brpm" />
+          ) : null}
+          {intensityMin != null ? (
+            <StatTile label="Intensity" value={fmtInt(intensityMin)} suffix=" min" />
+          ) : null}
+          {m?.vo2max != null ? (
+            <StatTile label="VO₂max" value={fmtInt(m.vo2max)} />
+          ) : null}
+          {m?.energySubjective != null ? (
+            <StatTile label="Energy" value={String(m.energySubjective)} suffix=" / 5" />
           ) : null}
         </div>
       ) : null}

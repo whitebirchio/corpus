@@ -12,6 +12,14 @@ export const TREND_METRICS = [
   "resting_hr",
   "distance_run",
   "calories_out",
+  "body_weight",
+  "body_fat",
+  "sleep",
+  "hrv",
+  "steps",
+  "stress",
+  "strength_volume",
+  "workout_frequency",
 ] as const;
 export type TrendMetric = (typeof TREND_METRICS)[number];
 

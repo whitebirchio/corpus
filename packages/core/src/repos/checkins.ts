@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 import type { Db, UserCtx } from "../db/client.js";
 import { bodyMeasurements, dailyMetrics } from "../db/schema.js";
 import type { LogDailyCheckinInput } from "../schemas/inputs.js";
@@ -95,4 +95,45 @@ export async function getDailyMetrics(
     .from(dailyMetrics)
     .where(and(eq(dailyMetrics.userId, ctx.userId), eq(dailyMetrics.localDate, localDate)));
   return rows[0];
+}
+
+export interface BodyMeasurementAsOf {
+  /** Local date the reading was taken, YYYY-MM-DD (may predate the query date). */
+  measuredOn: string;
+  weightKg: number;
+  bodyFatPct: number | null;
+}
+
+/**
+ * The most recent weigh-in on or before `asOf` (weight is logged sporadically,
+ * so the Today view carries the last known reading forward and captions it when
+ * stale). Local date is derived from measured_at in the user's timezone, matching
+ * the body-weight trend. Values stay canonical (kg) — the adapter converts.
+ */
+export async function getBodyMeasurementAsOf(
+  db: Db,
+  ctx: UserCtx,
+  asOf: string,
+): Promise<BodyMeasurementAsOf | null> {
+  const localDate = sql<string>`((${bodyMeasurements.measuredAt} at time zone ${ctx.timezone})::date)`;
+  const rows = await db
+    .select({
+      measuredOn: localDate,
+      weightKg: bodyMeasurements.weightKg,
+      bodyFatPct: bodyMeasurements.bodyFatPct,
+    })
+    .from(bodyMeasurements)
+    .where(
+      and(
+        eq(bodyMeasurements.userId, ctx.userId),
+        isNotNull(bodyMeasurements.weightKg),
+        lte(localDate, asOf),
+      ),
+    )
+    .orderBy(desc(bodyMeasurements.measuredAt))
+    .limit(1);
+  const row = rows[0];
+  return row && row.weightKg != null
+    ? { measuredOn: row.measuredOn, weightKg: row.weightKg, bodyFatPct: row.bodyFatPct }
+    : null;
 }

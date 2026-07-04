@@ -1,6 +1,15 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db, UserCtx } from "../src/db/client.js";
-import { dailyMetrics, meals, workoutBlocks, workoutSessions } from "../src/db/schema.js";
+import {
+  blockMovements,
+  bodyMeasurements,
+  dailyMetrics,
+  meals,
+  movements,
+  strengthSets,
+  workoutBlocks,
+  workoutSessions,
+} from "../src/db/schema.js";
 import { getMealWithItems, logMeal } from "../src/repos/meals.js";
 import { getTrend, type TrendResult } from "../src/repos/trends.js";
 import { createTestDb, createTestUser } from "./helpers.js";
@@ -58,6 +67,57 @@ async function insertRun(
     blockType,
     distanceM,
   });
+}
+
+async function insertMeasurement(
+  c: UserCtx,
+  measuredAtIso: string,
+  fields: Partial<typeof bodyMeasurements.$inferInsert>,
+): Promise<void> {
+  await db.insert(bodyMeasurements).values({
+    userId: c.userId,
+    measuredAt: new Date(measuredAtIso),
+    ...fields,
+  });
+}
+
+/** A strength block with the given working/warm-up sets on one session. */
+async function insertStrengthSets(
+  c: UserCtx,
+  localDate: string,
+  sets: Array<{ reps: number | null; loadKg: number | null; isWarmup?: boolean }>,
+): Promise<void> {
+  const [movement] = await db
+    .insert(movements)
+    .values({ name: `mv-${crypto.randomUUID()}`, category: "squat" })
+    .returning();
+  const [session] = await db
+    .insert(workoutSessions)
+    .values({
+      userId: c.userId,
+      startedAt: new Date(`${localDate}T10:00:00Z`),
+      localDate,
+      source: "conversation",
+    })
+    .returning();
+  const [block] = await db
+    .insert(workoutBlocks)
+    .values({ userId: c.userId, sessionId: session!.id, seq: 0, blockType: "strength" })
+    .returning();
+  const [bm] = await db
+    .insert(blockMovements)
+    .values({ userId: c.userId, blockId: block!.id, movementId: movement!.id, seq: 0 })
+    .returning();
+  await db.insert(strengthSets).values(
+    sets.map((s, i) => ({
+      userId: c.userId,
+      blockMovementId: bm!.id,
+      setNumber: i + 1,
+      reps: s.reps,
+      loadKg: s.loadKg,
+      isWarmup: s.isWarmup ?? false,
+    })),
+  );
 }
 
 function series(result: TrendResult, key: string) {
@@ -216,6 +276,128 @@ describe("getTrend distance_run", () => {
     expect(series(result, "distance").points).toEqual([
       { bucket: "2026-06-01", value: 16046.7, daysWithData: 2 },
     ]);
+  });
+});
+
+describe("getTrend body_weight / body_fat", () => {
+  it("averages weight per bucket by local date, counting distinct days", async () => {
+    // Two readings on 2026-06-01 (local) — a morning scale sync and a re-weigh.
+    await insertMeasurement(ctx, "2026-06-01T12:00:00Z", { weightKg: 80 });
+    await insertMeasurement(ctx, "2026-06-01T20:00:00Z", { weightKg: 82 });
+    await insertMeasurement(ctx, "2026-06-03T12:00:00Z", { weightKg: 79 });
+
+    const result = await getTrend(db, ctx, {
+      metric: "body_weight",
+      from: "2026-06-01",
+      to: "2026-06-07",
+      bucket: "week",
+    });
+    const s = series(result, "weight");
+    expect(s.agg).toBe("avg");
+    expect(s.unit).toBe("kg");
+    // (80 + 82 + 79) / 3 across two distinct days.
+    expect(s.points).toEqual([{ bucket: "2026-06-01", value: 80.3, daysWithData: 2 }]);
+  });
+
+  it("derives the local date from measured_at in the user's timezone", async () => {
+    // 02:00Z on 2026-06-02 is 22:00 on 2026-06-01 in America/New_York.
+    await insertMeasurement(ctx, "2026-06-02T02:00:00Z", { weightKg: 81 });
+    const result = await getTrend(db, ctx, {
+      metric: "body_weight",
+      from: "2026-06-01",
+      to: "2026-06-02",
+      bucket: "day",
+    });
+    expect(series(result, "weight").points).toEqual([
+      { bucket: "2026-06-01", value: 81, daysWithData: 1 },
+      { bucket: "2026-06-02", value: null, daysWithData: 0 },
+    ]);
+  });
+
+  it("counts body-fat days independently of weight-only readings", async () => {
+    await insertMeasurement(ctx, "2026-06-01T12:00:00Z", { weightKg: 80, bodyFatPct: 18 });
+    await insertMeasurement(ctx, "2026-06-02T12:00:00Z", { weightKg: 80 }); // no body fat
+    const result = await getTrend(db, ctx, {
+      metric: "body_fat",
+      from: "2026-06-01",
+      to: "2026-06-07",
+      bucket: "week",
+    });
+    expect(series(result, "body_fat").points).toEqual([
+      { bucket: "2026-06-01", value: 18, daysWithData: 1 },
+    ]);
+  });
+});
+
+describe("getTrend sleep / steps", () => {
+  it("averages sleep duration (seconds) across days with data", async () => {
+    await insertDay(ctx, "2026-06-01", { sleepDurationS: 25200 }); // 7h
+    await insertDay(ctx, "2026-06-02", { sleepDurationS: 28800 }); // 8h
+    const result = await getTrend(db, ctx, {
+      metric: "sleep",
+      from: "2026-06-01",
+      to: "2026-06-07",
+      bucket: "week",
+    });
+    const s = series(result, "sleep");
+    expect(s.agg).toBe("avg");
+    expect(s.unit).toBe("s");
+    expect(s.points).toEqual([{ bucket: "2026-06-01", value: 27000, daysWithData: 2 }]);
+  });
+
+  it("sums steps per bucket", async () => {
+    await insertDay(ctx, "2026-06-01", { steps: 8000 });
+    await insertDay(ctx, "2026-06-02", { steps: 12000 });
+    const result = await getTrend(db, ctx, {
+      metric: "steps",
+      from: "2026-06-01",
+      to: "2026-06-07",
+      bucket: "week",
+    });
+    const s = series(result, "steps");
+    expect(s.agg).toBe("sum");
+    expect(s.points).toEqual([{ bucket: "2026-06-01", value: 20000, daysWithData: 2 }]);
+  });
+});
+
+describe("getTrend strength_volume", () => {
+  it("sums reps × load for working sets, excluding warm-ups", async () => {
+    await insertStrengthSets(ctx, "2026-06-01", [
+      { reps: 5, loadKg: 100, isWarmup: true }, // excluded
+      { reps: 5, loadKg: 100 }, // 500
+      { reps: 5, loadKg: 100 }, // 500
+    ]);
+    await insertStrengthSets(ctx, "2026-06-02", [
+      { reps: 3, loadKg: 60 }, // 180
+      { reps: null, loadKg: 60 }, // ignored (no reps)
+    ]);
+    const result = await getTrend(db, ctx, {
+      metric: "strength_volume",
+      from: "2026-06-01",
+      to: "2026-06-07",
+      bucket: "week",
+    });
+    const s = series(result, "volume");
+    expect(s.agg).toBe("sum");
+    expect(s.unit).toBe("kg");
+    expect(s.points).toEqual([{ bucket: "2026-06-01", value: 1180, daysWithData: 2 }]);
+  });
+});
+
+describe("getTrend workout_frequency", () => {
+  it("counts sessions per bucket, with distinct training days", async () => {
+    await insertRun(ctx, "2026-06-01", 5000);
+    await insertRun(ctx, "2026-06-01", 3000); // two sessions, one day
+    await insertRun(ctx, "2026-06-03", 8000);
+    const result = await getTrend(db, ctx, {
+      metric: "workout_frequency",
+      from: "2026-06-01",
+      to: "2026-06-07",
+      bucket: "week",
+    });
+    const s = series(result, "sessions");
+    expect(s.agg).toBe("sum");
+    expect(s.points).toEqual([{ bucket: "2026-06-01", value: 3, daysWithData: 2 }]);
   });
 });
 

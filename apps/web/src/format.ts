@@ -12,6 +12,19 @@ export function fmtGrams(n: number): string {
   return `${fmtInt(n)}g`;
 }
 
+/** Units whose values carry a meaningful fractional part (e.g. 180.4 lb, 18.5%). */
+const DECIMAL_UNITS = new Set(["lb", "kg", "mi", "km", "%", "h"]);
+
+/**
+ * Format a trend value for its display unit: one decimal for fractional units
+ * (weight, body-fat %, distance, hours), whole numbers everywhere else.
+ */
+export function fmtMetric(n: number, unit: string): string {
+  return DECIMAL_UNITS.has(unit)
+    ? n.toLocaleString("en-US", { maximumFractionDigits: 1 })
+    : fmtInt(n);
+}
+
 /** "1h 15m" / "45m" for a duration in seconds; null-safe. */
 export function fmtDuration(seconds: number | null): string | null {
   if (seconds == null || seconds <= 0) return null;

@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db, UserCtx } from "../src/db/client.js";
-import { getDailyMetrics, upsertDailyCheckin } from "../src/repos/checkins.js";
+import {
+  getBodyMeasurementAsOf,
+  getDailyMetrics,
+  upsertDailyCheckin,
+} from "../src/repos/checkins.js";
 import { createTestDb, createTestUser } from "./helpers.js";
 
 let db: Db;
@@ -65,5 +69,38 @@ describe("upsertDailyCheckin", () => {
     });
     expect(again.weighIn?.id).toBe(weighIn?.id);
     expect(again.weighIn?.weightKg).toBeCloseTo(81.01, 1);
+  });
+});
+
+describe("getBodyMeasurementAsOf", () => {
+  it("returns the most recent weigh-in on or before the query date", async () => {
+    await upsertDailyCheckin(db, ctx, { date: "2026-06-28", weight: { value: 80, unit: "kg" } });
+    await upsertDailyCheckin(db, ctx, {
+      date: "2026-06-30",
+      weight: { value: 79, unit: "kg" },
+      bodyFatPct: 17.5,
+    });
+
+    // Exact day: returns that day's reading.
+    const onDay = await getBodyMeasurementAsOf(db, ctx, "2026-06-30");
+    expect(onDay?.measuredOn).toBe("2026-06-30");
+    expect(onDay?.weightKg).toBeCloseTo(79, 5);
+    expect(onDay?.bodyFatPct).toBe(17.5);
+
+    // A day with no weigh-in carries the last reading forward.
+    const carried = await getBodyMeasurementAsOf(db, ctx, "2026-06-29");
+    expect(carried?.measuredOn).toBe("2026-06-28");
+    expect(carried?.weightKg).toBeCloseTo(80, 5);
+  });
+
+  it("returns null when no weigh-in precedes the date", async () => {
+    await upsertDailyCheckin(db, ctx, { date: "2026-06-30", weight: { value: 80, unit: "kg" } });
+    expect(await getBodyMeasurementAsOf(db, ctx, "2026-06-29")).toBeNull();
+  });
+
+  it("ignores other users' measurements", async () => {
+    const other = await createTestUser(db, { email: "other@example.com" });
+    await upsertDailyCheckin(db, other, { date: "2026-06-30", weight: { value: 99, unit: "kg" } });
+    expect(await getBodyMeasurementAsOf(db, ctx, "2026-06-30")).toBeNull();
   });
 });

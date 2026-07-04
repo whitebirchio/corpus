@@ -8,7 +8,7 @@ import {
   type TrendSeries,
 } from "../api.js";
 import { TrendChart, type ChartForm, type SeriesMeta } from "../components/TrendChart.js";
-import { addDays, fmtBucket, fmtInt } from "../format.js";
+import { addDays, fmtBucket, fmtMetric } from "../format.js";
 import { useData } from "../useData.js";
 
 /**
@@ -59,6 +59,54 @@ const METRICS: Array<{
     label: "Distance run",
     form: "bar",
     series: [{ key: "distance", label: "Distance", color: "var(--series-1)" }],
+  },
+  {
+    id: "body_weight",
+    label: "Weight",
+    form: "line",
+    series: [{ key: "weight", label: "Weight", color: "var(--series-1)" }],
+  },
+  {
+    id: "body_fat",
+    label: "Body fat",
+    form: "line",
+    series: [{ key: "body_fat", label: "Body fat", color: "var(--series-1)" }],
+  },
+  {
+    id: "sleep",
+    label: "Sleep",
+    form: "bar",
+    series: [{ key: "sleep", label: "Sleep", color: "var(--series-1)" }],
+  },
+  {
+    id: "hrv",
+    label: "HRV",
+    form: "line",
+    series: [{ key: "hrv", label: "HRV", color: "var(--series-1)" }],
+  },
+  {
+    id: "steps",
+    label: "Steps",
+    form: "bar",
+    series: [{ key: "steps", label: "Steps", color: "var(--series-1)" }],
+  },
+  {
+    id: "stress",
+    label: "Stress",
+    form: "line",
+    series: [{ key: "stress", label: "Stress", color: "var(--series-1)" }],
+  },
+  {
+    id: "strength_volume",
+    label: "Lifting volume",
+    form: "bar",
+    series: [{ key: "volume", label: "Volume", color: "var(--series-1)" }],
+  },
+  {
+    id: "workout_frequency",
+    label: "Workouts",
+    form: "bar",
+    series: [{ key: "sessions", label: "Workouts", color: "var(--series-1)" }],
   },
 ];
 
@@ -188,10 +236,10 @@ function SummaryTile({ series, label }: { series: TrendSeries; label: string }) 
       <div className="stat-tile">
         <div className="label">{label} — total</div>
         <div className="value">
-          {fmtInt(total)}
+          {fmtMetric(total, series.unit)}
           <small>
             {" "}
-            {series.unit} · ≈{fmtInt(total / days)}/day
+            {series.unit} · ≈{fmtMetric(total / days, series.unit)}/day
           </small>
         </div>
       </div>
@@ -203,7 +251,7 @@ function SummaryTile({ series, label }: { series: TrendSeries; label: string }) 
     <div className="stat-tile">
       <div className="label">{label} — average</div>
       <div className="value">
-        {fmtInt(weighted)}
+        {fmtMetric(weighted, series.unit)}
         <small> {series.unit}</small>
       </div>
     </div>
@@ -243,7 +291,7 @@ function TrendTable({
                   const v = byKey[s.key]!.points[i]!.value;
                   return (
                     <td key={s.key} className={v == null ? "na" : ""}>
-                      {v == null ? "—" : fmtInt(v)}
+                      {v == null ? "—" : fmtMetric(v, byKey[s.key]!.unit)}
                     </td>
                   );
                 })}

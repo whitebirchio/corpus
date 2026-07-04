@@ -17,7 +17,7 @@ import {
   YAxis,
 } from "recharts";
 import type { TrendResult } from "../api.js";
-import { fmtBucket, fmtCompact, fmtInt } from "../format.js";
+import { fmtBucket, fmtCompact, fmtMetric } from "../format.js";
 
 export type ChartForm = "bar" | "stacked" | "line";
 
@@ -195,10 +195,10 @@ function TrendTooltip({
         return (
           <div className="t-row" key={s.key}>
             <span className="line-key" style={{ background: s.color }} />
-            <strong>{v == null ? "—" : `${fmtInt(v)} ${unitOf[s.key]}`}</strong>
+            <strong>{v == null ? "—" : `${fmtMetric(v, unitOf[s.key]!)} ${unitOf[s.key]}`}</strong>
             <span className="t-label">{s.label}</span>
             {v != null && bucket !== "day" && aggOf[s.key] === "sum" && days > 0 ? (
-              <span className="t-label">· ≈{fmtInt(v / days)}/day</span>
+              <span className="t-label">· ≈{fmtMetric(v / days, unitOf[s.key]!)}/day</span>
             ) : null}
           </div>
         );
