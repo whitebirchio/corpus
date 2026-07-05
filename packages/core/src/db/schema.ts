@@ -176,6 +176,25 @@ export const observationKind = pgEnum("observation_kind", [
   "note",
 ]);
 
+export const plannedSessionStatus = pgEnum("planned_session_status", [
+  "planned",
+  "completed", // set when a logged workout is linked
+  "skipped", // didn't happen, decided after the fact — counts against adherence
+  "cancelled", // removed ahead of time by a deliberate re-plan — doesn't
+]);
+
+export const planChangeCategory = pgEnum("plan_change_category", [
+  "sickness",
+  "injury",
+  "weather",
+  "schedule",
+  "fatigue",
+  "equipment",
+  "preference",
+  "progression",
+  "other",
+]);
+
 // ---------------------------------------------------------------------------
 // Shared column helpers
 // ---------------------------------------------------------------------------
@@ -352,6 +371,11 @@ export const workoutSessions = pgTable(
     title: text(),
     source: dataSource().notNull().default("conversation"),
     sourceRef: text(), // e.g. Garmin activity id — idempotency key for imports
+    // Agent-mediated link to the training plan (specs/04-training-plans/SPEC.md
+    // decision #6); deleting a plan never deletes the logged workout.
+    plannedSessionId: uuid().references((): AnyPgColumn => plannedSessions.id, {
+      onDelete: "set null",
+    }),
     durationS: integer(),
     sessionRpe: integer(), // 1-10
     avgHr: integer(),
@@ -816,6 +840,183 @@ export const observations = pgTable(
   },
   (t) => [
     index("observations_user_date_idx").on(t.userId, t.localDate),
+    ownerPolicy(t),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// Training plans (specs/04-training-plans/SPEC.md §3)
+// ---------------------------------------------------------------------------
+
+/** Checkpoints on the way to a goal, e.g. "30 mi/week base by Dec 2026". */
+export const goalMilestones = pgTable(
+  "goal_milestones",
+  {
+    id: id(),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    goalId: uuid()
+      .notNull()
+      .references(() => goals.id, { onDelete: "cascade" }),
+    title: text().notNull(),
+    description: text(),
+    target: jsonb().$type<{
+      metric?: string;
+      targetValue?: number;
+      unit?: string;
+      direction?: "increase" | "decrease" | "maintain";
+    }>(),
+    targetDate: date(),
+    status: goalStatus().notNull().default("active"),
+    statusChangedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    notes: text(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("goal_milestones_user_status_idx").on(t.userId, t.status),
+    index("goal_milestones_goal_idx").on(t.goalId),
+    ownerPolicy(t),
+  ],
+);
+
+/** One plan per calendar week; `focus` is the light phase concept (SPEC 04 decision #5). */
+export const trainingWeeks = pgTable(
+  "training_weeks",
+  {
+    id: id(),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    weekStart: date().notNull(), // the Monday
+    focus: text(), // e.g. "aerobic base + maintain strength"
+    notes: text(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("training_weeks_user_week_uq").on(t.userId, t.weekStart),
+    ownerPolicy(t),
+  ],
+);
+
+export const plannedSessions = pgTable(
+  "planned_sessions",
+  {
+    id: id(),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    weekId: uuid()
+      .notNull()
+      .references(() => trainingWeeks.id, { onDelete: "cascade" }),
+    plannedDate: date().notNull(),
+    title: text().notNull(),
+    status: plannedSessionStatus().notNull().default("planned"),
+    statusChangedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    notes: text(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    // One planned session per day — no two-a-days (SPEC 04 §3.2).
+    uniqueIndex("planned_sessions_user_date_uq").on(t.userId, t.plannedDate),
+    index("planned_sessions_week_idx").on(t.weekId),
+    ownerPolicy(t),
+  ],
+);
+
+/** Prescription counterpart of workout_blocks; targets, not results. */
+export const plannedBlocks = pgTable(
+  "planned_blocks",
+  {
+    id: id(),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    plannedSessionId: uuid()
+      .notNull()
+      .references(() => plannedSessions.id, { onDelete: "cascade" }),
+    seq: integer().notNull(),
+    blockType: blockType().notNull(),
+    // metcon prescription
+    scheme: metconScheme(),
+    roundsPlanned: integer(),
+    timeCapS: integer(),
+    intervalS: integer(),
+    // cardio prescription (canonical units)
+    targetDistanceM: doublePrecision(),
+    targetDurationS: integer(),
+    targetPaceSPerKm: doublePrecision(),
+    structure: text(), // interval description, e.g. "5 × 3:00 @ RPE 6 / 2:00 jog"
+    targetRpe: integer(),
+    notes: text(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("planned_blocks_session_idx").on(t.plannedSessionId),
+    ownerPolicy(t),
+  ],
+);
+
+/**
+ * Prescription per movement: uniform sets × reps @ target load — there is
+ * deliberately no planned_sets table (SPEC 04 decision #3). Numeric fields are
+ * canonical; repsText/prescription are display/irregular-scheme escape hatches.
+ */
+export const plannedBlockMovements = pgTable(
+  "planned_block_movements",
+  {
+    id: id(),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    plannedBlockId: uuid()
+      .notNull()
+      .references(() => plannedBlocks.id, { onDelete: "cascade" }),
+    movementId: uuid()
+      .notNull()
+      .references(() => movements.id),
+    seq: integer().notNull(),
+    sets: integer(),
+    reps: integer(),
+    repsText: text(), // "8-10", "21-15-9", "AMRAP"
+    targetLoadKg: doublePrecision(),
+    targetRpe: integer(),
+    restS: integer(),
+    prescription: text(), // display text, e.g. "4×8 @ 135 lb"
+    notes: text(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("planned_block_movements_block_idx").on(t.plannedBlockId),
+    ownerPolicy(t),
+  ],
+);
+
+/**
+ * Append-only adjustment history, written in the same transaction as the plan
+ * mutation it describes (SPEC 04 decision #7) — the reinforcement loop's
+ * training data ("skipped 3 Fridays running").
+ */
+export const planChanges = pgTable(
+  "plan_changes",
+  {
+    id: id(),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    weekId: uuid()
+      .notNull()
+      .references(() => trainingWeeks.id, { onDelete: "cascade" }),
+    plannedSessionId: uuid().references(() => plannedSessions.id, { onDelete: "set null" }),
+    category: planChangeCategory().notNull(),
+    summary: text().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("plan_changes_week_idx").on(t.weekId),
     ownerPolicy(t),
   ],
 );

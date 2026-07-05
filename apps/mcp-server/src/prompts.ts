@@ -150,4 +150,31 @@ Pull the real numbers with \`query_data\` and \`get_daily_summary\`, then give m
 End with 2–3 specific, actionable focus points for next week. If you spot a durable pattern worth remembering, save it with \`save_insight\`.
 `),
   );
+
+  server.registerPrompt(
+    "plan_my_week",
+    {
+      title: "Plan my training week",
+      description:
+        "Draft next week's training plan from goals, milestones, recent volume, recovery, and the forecast — then save it.",
+      argsSchema: {
+        weekStart: z
+          .string()
+          .optional()
+          .describe("Monday of the week to plan, YYYY-MM-DD; defaults to the upcoming week"),
+      },
+    },
+    ({ weekStart }) =>
+      userMessage(`
+Help me plan my training week${weekStart && weekStart.trim() ? ` starting ${weekStart.trim()}` : ""}. Work from real data, then propose a concrete week:
+
+1. \`get_goals\` — active goals and their milestones; identify the nearest milestone this week should serve.
+2. \`get_training_plan\` for the finishing week — adherence (completed vs. skipped) and what the change log says went wrong; carry those lessons forward.
+3. \`query_data\` for recent training volume — weekly run mileage trend and working sets per muscle group (the \`corpus://schema\` resource has starter queries). Progress sensibly: keep weekly mileage ramps around ~10%, and plan a deload if recent weeks stacked heavy load or adherence cratered.
+4. \`get_daily_summary\` — current recovery trend (sleep, HRV, readiness); temper the week if it looks rough.
+5. Check the weather forecast for my location for the week and route runs indoors/outdoors accordingly.
+6. Draft Mon–Sun with full prescriptions: strength days as movements with sets × reps @ target load (unit-tagged), runs with target distance/duration/pace, and explicit rest days. Base loads on my recent working weights from \`get_movement_history\` or \`query_data\` — not guesses.
+7. Present the draft for my confirmation, adjust to my feedback, THEN save with \`plan_week\` (weekStart is the Monday) and recap what was saved.
+`),
+  );
 }

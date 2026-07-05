@@ -15,6 +15,13 @@
       "when": 1783032833012,
       "tag": "0001_square_energizer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783269752656,
+      "tag": "0002_short_mister_fear",
+      "breakpoints": true
     }
   ]
 }

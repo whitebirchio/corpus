@@ -77,6 +77,20 @@ export function todayIn(timeZone: string, now: Date = new Date()): string {
   return localDateOf(now, timeZone);
 }
 
+/** `dateStr` shifted by `days` (calendar arithmetic, timezone-free). */
+export function addDays(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** The Monday of the week containing `dateStr` — training weeks key on it (specs/04-training-plans/SPEC.md §3.2). */
+export function mondayOf(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  const sinceMonday = (d.getUTCDay() + 6) % 7;
+  return addDays(dateStr, -sinceMonday);
+}
+
 /** Nominal local times for meals when the user gives a date but no time. */
 export const NOMINAL_MEAL_TIMES: Record<string, string> = {
   breakfast: "08:00",

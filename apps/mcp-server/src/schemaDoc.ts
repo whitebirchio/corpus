@@ -22,7 +22,7 @@ Conventions:
 - body_composition_regions(measurement_id -> body_measurements.id, region: total|arm|leg|trunk|head|ribs|spine|pelvis|android|gynoid, side: left|right|both, lean_mass_kg, fat_mass_kg, fat_pct, bmd_gcm2, bmd_percentile)
 
 ## Workouts (session -> block -> block_movement -> set)
-- workout_sessions(started_at, local_date, title, source, duration_s, session_rpe 1-10, avg_hr, max_hr, calories, notes)
+- workout_sessions(started_at, local_date, title, source, duration_s, session_rpe 1-10, avg_hr, max_hr, calories, notes, planned_session_id -> planned_sessions.id NULL=unplanned)
 - workout_blocks(session_id, seq, block_type: strength|run|metcon|interval|warmup|cooldown|mobility|other,
     scheme: amrap|emom|for_time|rounds_for_time|tabata|chipper|ladder|custom, rounds_planned, time_cap_s, interval_s,
     result_time_s, result_rounds, result_reps, rx,
@@ -63,6 +63,35 @@ Example — working sets per muscle group, last 7 days:
 
 ## Goals, insights, observations
 - goals(title, domain: fitness|nutrition|body_comp|labs|lifestyle, description, priority int ASC=more important, target jsonb {metric,targetValue,unit,direction}, target_date, status: active|paused|achieved|abandoned, notes)
+- goal_milestones(goal_id, title, description, target jsonb {metric,targetValue,unit,direction}, target_date, status: active|paused|achieved|abandoned, notes) — dated checkpoints under a goal
 - insights(title, body, tags text[], status: active|archived, source) — durable agent conclusions; check these before re-deriving
 - observations(observed_at, local_date, kind: energy|mood|soreness|symptom|note, value_num 1-5, body_area, text)
+
+## Training plan (week -> planned_session -> planned_block -> planned_block_movement)
+- training_weeks(week_start DATE UNIQUE/user (the Monday), focus, notes) — one plan per calendar week
+- planned_sessions(week_id, planned_date UNIQUE/user, title, status: planned|completed|skipped|cancelled, status_changed_at, notes)
+  completed = a logged workout is linked (workout_sessions.planned_session_id); skipped counts against adherence, cancelled doesn't
+- planned_blocks(planned_session_id, seq, block_type, scheme, rounds_planned, time_cap_s, interval_s,
+    target_distance_m, target_duration_s, target_pace_s_per_km, structure, target_rpe, notes) — prescriptions, not results
+- planned_block_movements(planned_block_id, movement_id, seq, sets, reps, reps_text, target_load_kg, target_rpe, rest_s, prescription, notes)
+- plan_changes(week_id, planned_session_id NULLABLE, category: sickness|injury|weather|schedule|fatigue|equipment|preference|progression|other, summary, created_at) — append-only adjustment history
+
+Example — adherence by week, last 8 weeks:
+  SELECT tw.week_start, count(*) FILTER (WHERE ps.status = 'completed') AS done,
+         count(*) FILTER (WHERE ps.status = 'skipped') AS skipped, count(*) AS planned_total
+  FROM planned_sessions ps JOIN training_weeks tw ON tw.id = ps.week_id
+  WHERE tw.week_start >= current_date - interval '8 weeks'
+  GROUP BY tw.week_start ORDER BY tw.week_start;
+
+Example — prescribed vs. actual load for a movement:
+  SELECT ps.planned_date, m.name, pbm.sets, pbm.reps, pbm.target_load_kg, ss.reps AS actual_reps, ss.load_kg AS actual_load_kg
+  FROM planned_block_movements pbm
+  JOIN planned_blocks pb ON pb.id = pbm.planned_block_id
+  JOIN planned_sessions ps ON ps.id = pb.planned_session_id
+  JOIN movements m ON m.id = pbm.movement_id
+  LEFT JOIN workout_sessions ws ON ws.planned_session_id = ps.id
+  LEFT JOIN workout_blocks wb ON wb.session_id = ws.id
+  LEFT JOIN block_movements bm ON bm.block_id = wb.id AND bm.movement_id = pbm.movement_id
+  LEFT JOIN strength_sets ss ON ss.block_movement_id = bm.id AND NOT ss.is_warmup
+  WHERE m.name = 'back squat' ORDER BY ps.planned_date;
 `;

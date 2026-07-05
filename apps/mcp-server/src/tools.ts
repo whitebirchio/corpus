@@ -7,8 +7,24 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
   endRegimenItemShape,
+  formatDistance,
+  formatDuration,
   formatMass,
+  formatPace,
   getActiveGoals,
+  getMilestones,
+  getTrainingPlan,
+  getTrainingPlanShape,
+  linkWorkoutToPlan,
+  linkWorkoutToPlanShape,
+  planWeek,
+  planWeekShape,
+  updateMilestoneStatus,
+  updateMilestoneStatusShape,
+  updatePlannedSession,
+  updatePlannedSessionShape,
+  upsertMilestone,
+  upsertMilestoneShape,
   getActiveRegimen,
   getDailySummary,
   getRecentWorkouts,
@@ -424,6 +440,105 @@ export function registerTools(
     },
   );
 
+  // --- training plans (specs/04-training-plans/SPEC.md §4.1) -----------------
+
+  server.registerTool(
+    "upsert_milestone",
+    {
+      title: "Add or update goal milestone",
+      description:
+        "Create or update a milestone — a dated checkpoint on the way to a goal (e.g. '30 mi/week base by Dec 2026' " +
+        "under the ultra goal). Matches by id when given, else by title within the goal (idempotent). " +
+        "get_goals lists each goal's existing milestones — check there before creating.",
+      inputSchema: upsertMilestoneShape,
+    },
+    async (input) => {
+      try {
+        return ok(await run((db, c) => upsertMilestone(db, c, input)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "update_milestone_status",
+    {
+      title: "Update milestone status",
+      description: "Set a milestone to active, paused, achieved, or abandoned.",
+      inputSchema: updateMilestoneStatusShape,
+    },
+    async (input) => {
+      try {
+        return ok(await run((db, c) => updateMilestoneStatus(db, c, input)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "plan_week",
+    {
+      title: "Plan a training week",
+      description:
+        "Create or re-plan one calendar week of prescribed workouts (weekStart MUST be a Monday; at most one session per day). " +
+        "Pass full prescriptions: strength movements with sets/reps + unit-tagged targetLoad, cardio blocks with targetDistance/targetDuration/targetPace. " +
+        "Idempotent on the week: re-planning replaces only still-`planned` sessions — completed/skipped days are preserved and their dates refused. " +
+        "Re-planning a non-empty week REQUIRES `change` (category + summary quoting the user's reason); the result echoes kept sessions and any " +
+        "movements newly added to the catalog. Confirm the drafted week with the user BEFORE calling this.",
+      inputSchema: planWeekShape,
+    },
+    async (input) => {
+      try {
+        return ok(await run((db, c) => planWeek(db, c, input)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "update_planned_session",
+    {
+      title: "Update a planned session",
+      description:
+        "Surgical change to one planned session (id from get_training_plan): move it to another day in the week, retitle, " +
+        "replace its prescription (`blocks` replaces ALL blocks), or set status — 'skipped' (didn't happen; counts against adherence), " +
+        "'cancelled' (deliberately dropped ahead of time), or back to 'planned' to undo a mistaken skip. " +
+        "`change` (category + summary) is always required and becomes the week's adjustment history. " +
+        "Completed sessions are refused — unlink the workout first via link_workout_to_plan.",
+      inputSchema: updatePlannedSessionShape,
+    },
+    async (input) => {
+      try {
+        return ok(await run((db, c) => updatePlannedSession(db, c, input)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "link_workout_to_plan",
+    {
+      title: "Link workout to plan",
+      description:
+        "Reconcile a logged workout (session.id from get_recent_workouts / get_daily_summary) with a planned session " +
+        "(id from get_training_plan): the planned session is marked completed. Use after logging a workout on a planned day, " +
+        "and for Garmin-imported sessions that match a planned day. Pass unlink:true to remove a wrong link (the planned " +
+        "session reverts to 'planned'). Idempotent. After linking, compare prescribed vs. actual and surface notable gaps.",
+      inputSchema: linkWorkoutToPlanShape,
+    },
+    async (input) => {
+      try {
+        return ok(await run((db, c) => linkWorkoutToPlan(db, c, input)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
   // --- reads ----------------------------------------------------------------
 
   server.registerTool(
@@ -493,12 +608,64 @@ export function registerTools(
     "get_goals",
     {
       title: "Get active goals",
-      description: "Active goals ordered by priority (most important first).",
+      description:
+        "Active goals ordered by priority (most important first), each with its milestones " +
+        "(dated checkpoints, soonest first) across all statuses.",
       inputSchema: {},
     },
     async () => {
       try {
-        return ok(await run((db, c) => getActiveGoals(db, c)));
+        return ok(
+          await run(async (db, c) => {
+            const goals = await getActiveGoals(db, c);
+            const milestones = await getMilestones(db, c);
+            return goals.map((g) => ({
+              ...g,
+              milestones: milestones.filter((m) => m.goalId === g.id),
+            }));
+          }),
+        );
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "get_training_plan",
+    {
+      title: "Get training plan",
+      description:
+        "The training plan for a week (default: the current week; pass any date to get its week): focus, sessions with " +
+        "full prescriptions and status (planned/completed/skipped/cancelled), linked actual workouts, and the week's " +
+        "adjustment history. Call this FIRST when discussing today's workout or the week ahead. " +
+        "Quantities are canonical (kg/m/s) with display strings attached — echo the display values.",
+      inputSchema: getTrainingPlanShape,
+    },
+    async ({ weekStart }) => {
+      try {
+        const plan = await run((db, c) => getTrainingPlan(db, c, weekStart));
+        const p = getProps();
+        return ok({
+          ...plan,
+          sessions: plan.sessions.map((s) => ({
+            ...s,
+            blocks: s.blocks.map((b) => ({
+              ...b,
+              targetDistanceDisplay:
+                b.targetDistanceM != null ? formatDistance(b.targetDistanceM, p.unitPreference) : null,
+              targetDurationDisplay:
+                b.targetDurationS != null ? formatDuration(b.targetDurationS) : null,
+              targetPaceDisplay:
+                b.targetPaceSPerKm != null ? formatPace(b.targetPaceSPerKm, p.unitPreference) : null,
+              movements: b.movements.map((m) => ({
+                ...m,
+                targetLoadDisplay:
+                  m.targetLoadKg != null ? formatMass(m.targetLoadKg, p.unitPreference) : null,
+              })),
+            })),
+          })),
+        });
       } catch (e) {
         return err(e);
       }
