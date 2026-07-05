@@ -28,6 +28,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -195,6 +196,27 @@ export const planChangeCategory = pgEnum("plan_change_category", [
   "other",
 ]);
 
+export const equipmentCategory = pgEnum("equipment_category", [
+  "barbell",
+  "dumbbell",
+  "kettlebell",
+  "rack",
+  "bench",
+  "band",
+  "machine",
+  "cardio",
+  "other",
+]);
+
+export const constraintKind = pgEnum("constraint_kind", [
+  "schedule",
+  "injury",
+  "seasonal",
+  "equipment_access",
+  "preference",
+  "other",
+]);
+
 // ---------------------------------------------------------------------------
 // Shared column helpers
 // ---------------------------------------------------------------------------
@@ -227,6 +249,8 @@ export const users = pgTable(
     displayName: text().notNull(),
     timezone: text().notNull().default("America/New_York"),
     unitPreference: unitPreference().notNull().default("imperial"),
+    // Where to check the weather when planning training (specs/04-training-plans/SPEC.md decision #9).
+    homeLocation: text(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -1017,6 +1041,95 @@ export const planChanges = pgTable(
   },
   (t) => [
     index("plan_changes_week_idx").on(t.weekId),
+    ownerPolicy(t),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// Athlete model (specs/04-training-plans/SPEC.md §3.4) — the reinforcement substrate
+// ---------------------------------------------------------------------------
+
+/**
+ * What's available to train with. Names should align with the movement
+ * catalog's `equipment` vocabulary so feasibility is a join away.
+ */
+export const equipmentItems = pgTable(
+  "equipment_items",
+  {
+    id: id(),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text().notNull(),
+    category: equipmentCategory().notNull().default("other"),
+    details: jsonb().$type<Record<string, unknown>>(), // { min/max load, increments, count, ... }
+    location: text(), // "garage", "gym"
+    active: boolean().notNull().default(true), // deactivate, don't delete — preserves history
+    notes: text(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("equipment_items_user_name_uq").on(t.userId, t.name),
+    ownerPolicy(t),
+  ],
+);
+
+/**
+ * The agent's current belief about a capability — one row per natural key,
+ * upserted; the progression history lives in the actuals, not here (SPEC 04
+ * decision #12). `basis` cites the evidence ("5×5 @ 84 kg on 2026-07-01, RPE 7").
+ */
+export const capabilityEstimates = pgTable(
+  "capability_estimates",
+  {
+    id: id(),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    movementId: uuid().references(() => movements.id), // null for movement-less capacities
+    metric: text().notNull(), // 'working_load' | 'e1rm' | 'weekly_run_volume' | 'long_run_distance' | 'zone2_pace' | ...
+    repMax: integer(), // value is an N-rep working estimate (strength metrics)
+    value: doublePrecision().notNull(),
+    unit: text().notNull(), // canonical: kg | m | s | s_per_km | m_per_week
+    confidence: estimateConfidence().notNull().default("medium"),
+    basis: text().notNull(),
+    effectiveDate: date().notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    // Natural key with nullable columns (movement-less metrics, repMax-less
+    // estimates) — NULLS NOT DISTINCT so there's exactly one belief per key.
+    unique("capability_estimates_nk_uq")
+      .on(t.userId, t.movementId, t.metric, t.repMax)
+      .nullsNotDistinct(),
+    index("capability_estimates_user_metric_idx").on(t.userId, t.metric),
+    ownerPolicy(t),
+  ],
+);
+
+/**
+ * Standing rules the planner must respect ("no outdoor runs below −12°C",
+ * "long run Saturday mornings"). Binding, unlike insights (fuzzy observations).
+ */
+export const planningConstraints = pgTable(
+  "planning_constraints",
+  {
+    id: id(),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: constraintKind().notNull(),
+    rule: text().notNull(),
+    params: jsonb().$type<Record<string, unknown>>(),
+    active: boolean().notNull().default(true),
+    notes: text(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("planning_constraints_user_active_idx").on(t.userId, t.active),
     ownerPolicy(t),
   ],
 );

@@ -83,6 +83,11 @@ Example — adherence by week, last 8 weeks:
   WHERE tw.week_start >= current_date - interval '8 weeks'
   GROUP BY tw.week_start ORDER BY tw.week_start;
 
+## Athlete model
+- equipment_items(name UNIQUE/user, category: barbell|dumbbell|kettlebell|rack|bench|band|machine|cardio|other, details jsonb, location, active, notes)
+- capability_estimates(movement_id NULL=movement-less, metric e.g. 'working_load'|'e1rm'|'weekly_run_volume'|'zone2_pace', rep_max, value, unit: kg|m|s|s_per_km|m_per_week, confidence, basis, effective_date) — current beliefs, one row per key
+- planning_constraints(kind: schedule|injury|seasonal|equipment_access|preference|other, rule, params jsonb, active, notes) — binding planning rules
+
 Example — prescribed vs. actual load for a movement:
   SELECT ps.planned_date, m.name, pbm.sets, pbm.reps, pbm.target_load_kg, ss.reps AS actual_reps, ss.load_kg AS actual_load_kg
   FROM planned_block_movements pbm

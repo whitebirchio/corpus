@@ -34,3 +34,15 @@ export async function getUser(db: Db, userId: string): Promise<User | undefined>
   const rows = await db.select().from(users).where(eq(users.id, userId));
   return rows[0];
 }
+
+/** Where to check the weather when planning training (specs/04-training-plans/SPEC.md decision #9). */
+export async function setHomeLocation(db: Db, userId: string, location: string): Promise<User> {
+  const rows = await db
+    .update(users)
+    .set({ homeLocation: location, updatedAt: new Date() })
+    .where(eq(users.id, userId))
+    .returning();
+  const u = rows[0];
+  if (!u) throw new Error(`User ${userId} not found`);
+  return u;
+}

@@ -135,6 +135,7 @@ Thin shells over new core repos (`packages/core/src/repos/`), per the hexagonal 
 - `update_planned_session` — surgical mid-week change: move date, edit prescription (block/movement payload replace within the session), set status to `skipped`/`cancelled`, edit notes. Requires `change: { category, summary }`.
 - `link_workout_to_plan` — set `workout_sessions.planned_session_id` and mark the planned session `completed` (or unlink). The reconciliation tool for both conversational logs and Garmin imports.
 - `upsert_equipment_item`, `upsert_capability_estimate`, `upsert_planning_constraint` — athlete-model maintenance; each handles deactivation (`active: false`) rather than delete, preserving history.
+- `set_home_location` — sets `users.home_location` conversationally (added during implementation; the profile needs a writer).
 
 ### 4.2 Read tools & resources
 

@@ -15,16 +15,24 @@ import {
   getMilestones,
   getTrainingPlan,
   getTrainingPlanShape,
+  getTrainingProfile,
   linkWorkoutToPlan,
   linkWorkoutToPlanShape,
   planWeek,
   planWeekShape,
+  setHomeLocation,
   updateMilestoneStatus,
   updateMilestoneStatusShape,
   updatePlannedSession,
   updatePlannedSessionShape,
+  upsertCapabilityEstimate,
+  upsertCapabilityEstimateShape,
+  upsertEquipmentItem,
+  upsertEquipmentItemShape,
   upsertMilestone,
   upsertMilestoneShape,
+  upsertPlanningConstraint,
+  upsertPlanningConstraintShape,
   getActiveRegimen,
   getDailySummary,
   getRecentWorkouts,
@@ -73,6 +81,7 @@ import {
 } from "@corpus/core";
 import { queryData, withUserDb } from "./db.js";
 import { renderProfile } from "./profile.js";
+import { renderTrainingProfile } from "./trainingProfile.js";
 import { SCHEMA_DOC } from "./schemaDoc.js";
 import { issueUploadToken, uploadUrlFor, UPLOAD_TTL_SECONDS } from "./upload.js";
 import type { GrantProps } from "./types.js";
@@ -539,6 +548,96 @@ export function registerTools(
     },
   );
 
+  // --- athlete model (specs/04-training-plans/SPEC.md §3.4) ------------------
+
+  server.registerTool(
+    "upsert_equipment_item",
+    {
+      title: "Add or update equipment",
+      description:
+        "Record training equipment the user has available (name, category, specifics like max load / increments, location). " +
+        "Matches by id when given, else by name (idempotent). Pass active:false to retire sold/broken gear. " +
+        "get_training_profile lists current equipment — check there before adding. Save equipment as you learn about it " +
+        "in conversation so plans only prescribe what's actually available.",
+      inputSchema: upsertEquipmentItemShape,
+    },
+    async (input) => {
+      try {
+        return ok(await run((db, c) => upsertEquipmentItem(db, c, input)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "upsert_capability_estimate",
+    {
+      title: "Save capability estimate",
+      description:
+        "Record/update the current belief about a capability: per-movement strength ('working_load' with repMax, or 'e1rm') " +
+        "or movement-less capacities ('weekly_run_volume', 'long_run_distance', 'zone2_pace', 'threshold_pace'). " +
+        "Upserts on (movement, metric, repMax) — one belief per key; history lives in the workout data. " +
+        "ALWAYS cite evidence in `basis`. Update estimates after planned-vs-actual comparisons show the belief is off " +
+        "(e.g. prescribed 4×8 @ 135 lb, did 4×8 @ 145 lb at RPE 7 → raise working_load and cite that session).",
+      inputSchema: upsertCapabilityEstimateShape,
+    },
+    async (input) => {
+      try {
+        const result = await run((db, c) => upsertCapabilityEstimate(db, c, input));
+        const p = getProps();
+        return ok({
+          ...result,
+          display:
+            result.unit === "kg" ? formatMass(result.value, p.unitPreference) : undefined,
+        });
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "upsert_planning_constraint",
+    {
+      title: "Add or update planning constraint",
+      description:
+        "Record a standing rule week plans must respect: schedule ('long run Saturday mornings'), injury " +
+        "('left knee: no deep pistols until cleared'), seasonal ('no outdoor runs below about -12C'), equipment access, or " +
+        "preference. Matches by id, else by rule text (idempotent). Pass active:false when a constraint lifts " +
+        "(injury cleared). Constraints are binding — fuzzy observations belong in insights instead. " +
+        "When the same disruption keeps recurring in plan adjustments, propose promoting it to a constraint.",
+      inputSchema: upsertPlanningConstraintShape,
+    },
+    async (input) => {
+      try {
+        return ok(await run((db, c) => upsertPlanningConstraint(db, c, input)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "set_home_location",
+    {
+      title: "Set home location",
+      description:
+        "Set where the user lives (city/region, e.g. 'Exeter, NH') so weekly planning can check the local forecast.",
+      inputSchema: {
+        location: z.string().min(1).describe("City/region for weather lookups"),
+      },
+    },
+    async ({ location }) => {
+      try {
+        const u = await run((db) => setHomeLocation(db, ctx().userId, location));
+        return ok({ status: "saved", homeLocation: u.homeLocation });
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
   // --- reads ----------------------------------------------------------------
 
   server.registerTool(
@@ -625,6 +724,26 @@ export function registerTools(
             }));
           }),
         );
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "get_training_profile",
+    {
+      title: "Get training profile",
+      description:
+        "The athlete model in one read: active goals with milestones, capability estimates (with confidence and evidence), " +
+        "available equipment, binding planning constraints, home location, and the current week's focus. " +
+        "Call this FIRST in any planning conversation (plan_my_week, adjust_my_plan, training strategy review).",
+      inputSchema: {},
+    },
+    async () => {
+      try {
+        const profile = await run((db, c) => getTrainingProfile(db, c));
+        return ok(renderTrainingProfile(profile, getProps().unitPreference));
       } catch (e) {
         return err(e);
       }

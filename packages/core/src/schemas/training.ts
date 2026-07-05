@@ -167,3 +167,83 @@ export const updateMilestoneStatusShape = {
 };
 export const updateMilestoneStatusInput = z.object(updateMilestoneStatusShape);
 export type UpdateMilestoneStatusInput = z.infer<typeof updateMilestoneStatusInput>;
+
+// --- athlete model (§3.4) ------------------------------------------------------
+
+export const upsertEquipmentItemShape = {
+  id: z.uuid().optional().describe("Provide to update an existing item"),
+  name: z
+    .string()
+    .min(1)
+    .describe(
+      "e.g. 'barbell', 'adjustable dumbbells', 'treadmill' — align with the movement catalog's equipment vocabulary where possible",
+    ),
+  category: z.enum([
+    "barbell",
+    "dumbbell",
+    "kettlebell",
+    "rack",
+    "bench",
+    "band",
+    "machine",
+    "cardio",
+    "other",
+  ]),
+  details: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe("Free-form specifics: { maxLoadKg, incrementKg, count, resistanceLevels, ... }"),
+  location: z.string().optional().describe("'garage', 'gym', ..."),
+  active: z.boolean().optional().describe("false retires the item (kept for history)"),
+  notes: z.string().optional(),
+};
+export const upsertEquipmentItemInput = z.object(upsertEquipmentItemShape);
+export type UpsertEquipmentItemInput = z.infer<typeof upsertEquipmentItemInput>;
+
+/** Unit-tagged capability value; converted to canonical (kg, m, s, s/km, m/week). */
+export const capabilityValue = z.object({
+  value: z.number().positive(),
+  unit: z.enum(["kg", "lb", "m", "km", "mi", "min/km", "min/mi", "s", "min", "h", "km/week", "mi/week"]),
+});
+
+export const upsertCapabilityEstimateShape = {
+  movement: z
+    .string()
+    .optional()
+    .describe("Movement name for per-movement strength metrics; omit for movement-less capacities"),
+  metric: z
+    .string()
+    .min(1)
+    .describe(
+      "Per-movement: 'working_load' (with repMax) or 'e1rm'. Movement-less: 'weekly_run_volume', 'long_run_distance', 'zone2_pace', 'threshold_pace', ...",
+    ),
+  repMax: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("N when the value is an N-rep working estimate, e.g. 5 for a 5RM working load"),
+  estimate: capabilityValue,
+  confidence: z.enum(["high", "medium", "low"]).optional().describe("Defaults to medium"),
+  basis: z
+    .string()
+    .min(1)
+    .describe("Evidence citation, e.g. '5×5 @ 84 kg on 2026-07-01, RPE 7' — never save an estimate without one"),
+  effectiveDate: localDate.optional().describe("Defaults to today"),
+};
+export const upsertCapabilityEstimateInput = z.object(upsertCapabilityEstimateShape);
+export type UpsertCapabilityEstimateInput = z.infer<typeof upsertCapabilityEstimateInput>;
+
+export const upsertPlanningConstraintShape = {
+  id: z.uuid().optional().describe("Provide to update an existing constraint"),
+  kind: z.enum(["schedule", "injury", "seasonal", "equipment_access", "preference", "other"]),
+  rule: z
+    .string()
+    .min(1)
+    .describe("The standing rule, e.g. 'No outdoor runs below about -12C — treadmill instead'"),
+  params: z.record(z.string(), z.unknown()).optional(),
+  active: z.boolean().optional().describe("false retires the constraint (e.g. injury cleared)"),
+  notes: z.string().optional(),
+};
+export const upsertPlanningConstraintInput = z.object(upsertPlanningConstraintShape);
+export type UpsertPlanningConstraintInput = z.infer<typeof upsertPlanningConstraintInput>;

@@ -58,6 +58,7 @@ I want to log a workout by describing it. Capture it accurately into \`log_worko
 - CRITICAL data placement (getting this wrong silently loses data): every set-based movement — strength lifts AND weighted accessories — needs a \`sets\` array, one entry per set with reps + unit-tagged load (bodyweight sets omit load). Only true metcons use block-level repsPerRound/load. Runs and other cardio take distance/duration/HR on the block. Never put a lift's reps/weight only in \`prescription\` text — that's a fallback, not structured data.
 - Confirm the parsed structure back to me before saving if anything is ambiguous, and supply category + primaryMuscles for any movement new to the catalog.
 - After saving, echo a concise recap (per-movement top sets, rough total volume) and mention if it matched or enriched a Garmin-imported session for the day.
+- Check \`get_training_plan\`: if today had a planned session, link this workout to it with \`link_workout_to_plan\`, then compare prescribed vs. actual. If the gap says my capability belief is off (e.g. prescribed loads felt easy at low RPE), update it with \`upsert_capability_estimate\`, citing this session as the basis.
 `),
   );
 
@@ -78,10 +79,10 @@ I want to log a workout by describing it. Capture it accurately into \`log_worko
       userMessage(`
 Help me decide what workout to do today${focus && focus.trim() ? `, biased toward ${focus.trim()}` : ""}. Base it on real data:
 
-1. \`get_daily_summary\` for today — read last night's sleep, HRV, resting HR, training readiness, body battery, and my subjective energy.
-2. \`query_data\` to see recent training load: working sets per muscle group over the last 5–7 days, days since each major lift, and recent cardio. The \`corpus://schema\` resource has the muscle-volume query to start from.
-3. \`get_goals\` to weigh my active priorities.
-4. Recommend a specific session (blocks + movements) that: respects recovery — go lighter or suggest rest if sleep/HRV/readiness are low; targets under-trained muscle groups and avoids ones hit hard in the last 48h; and moves my top goals forward. Give a short rationale, then offer to log it with \`log_workout\` when I'm done.
+1. \`get_training_plan\` — if today has a planned session, the job is EXECUTE-OR-ADAPT, not invent: present the prescription, sanity-check it against recovery (step 2), and only scale or swap with a reason. Apply any change via \`update_planned_session\` with an honest change category.
+2. \`get_daily_summary\` for today — read last night's sleep, HRV, resting HR, training readiness, body battery, and my subjective energy.
+3. If nothing is planned today: \`query_data\` for recent training load (working sets per muscle group over the last 5–7 days, days since each major lift, recent cardio — the \`corpus://schema\` resource has the starter query), \`get_goals\` for priorities, and \`get_training_profile\` for equipment and constraints.
+4. Recommend a specific session (blocks + movements) that: respects recovery — go lighter or suggest rest if sleep/HRV/readiness are low; targets under-trained muscle groups and avoids ones hit hard in the last 48h; and moves my top goals forward. Give a short rationale, then offer to log it with \`log_workout\` when I'm done (and link it to the plan with \`link_workout_to_plan\` if it was planned).
 `),
   );
 
@@ -141,7 +142,7 @@ Help me import a lab or fitness-test report.
 Run my weekly review for the 7 days ending ${date && date.trim() ? date.trim() : "today"}.
 
 Pull the real numbers with \`query_data\` and \`get_daily_summary\`, then give me a tight written review covering:
-1. Training — sessions, working sets per muscle group, cardio volume/load, vs. the prior week; call out imbalances or skipped muscle groups.
+1. Training — sessions, working sets per muscle group, cardio volume/load, vs. the prior week; call out imbalances or skipped muscle groups. Include plan adherence from \`get_training_plan\`: planned vs. completed vs. skipped, with the week's change log as the explanation layer (a skip with a recorded reason is signal, not failure).
 2. Nutrition — average calories and protein vs. target, adherence, notable gaps.
 3. Recovery — sleep duration/score, HRV, resting HR, and training-readiness trend; flag concerning drifts.
 4. Body comp — weight trend if I logged weigh-ins.
@@ -168,13 +169,59 @@ End with 2–3 specific, actionable focus points for next week. If you spot a du
       userMessage(`
 Help me plan my training week${weekStart && weekStart.trim() ? ` starting ${weekStart.trim()}` : ""}. Work from real data, then propose a concrete week:
 
-1. \`get_goals\` — active goals and their milestones; identify the nearest milestone this week should serve.
+1. \`get_training_profile\` — milestones to serve, capability estimates for loads/paces, available equipment, and binding constraints. Ask about and save anything important that's missing (equipment via \`upsert_equipment_item\`, location via \`set_home_location\`).
 2. \`get_training_plan\` for the finishing week — adherence (completed vs. skipped) and what the change log says went wrong; carry those lessons forward.
 3. \`query_data\` for recent training volume — weekly run mileage trend and working sets per muscle group (the \`corpus://schema\` resource has starter queries). Progress sensibly: keep weekly mileage ramps around ~10%, and plan a deload if recent weeks stacked heavy load or adherence cratered.
 4. \`get_daily_summary\` — current recovery trend (sleep, HRV, readiness); temper the week if it looks rough.
-5. Check the weather forecast for my location for the week and route runs indoors/outdoors accordingly.
-6. Draft Mon–Sun with full prescriptions: strength days as movements with sets × reps @ target load (unit-tagged), runs with target distance/duration/pace, and explicit rest days. Base loads on my recent working weights from \`get_movement_history\` or \`query_data\` — not guesses.
+5. Check the weather forecast for my home location for the week and route runs indoors/outdoors per my seasonal constraints.
+6. Draft Mon–Sun with full prescriptions: strength days as movements with sets × reps @ target load (unit-tagged), runs with target distance/duration/pace, and explicit rest days. Prescribe loads from my capability estimates — fall back to \`get_movement_history\` where no estimate exists, and save confirmed new estimates with \`upsert_capability_estimate\`.
 7. Present the draft for my confirmation, adjust to my feedback, THEN save with \`plan_week\` (weekStart is the Monday) and recap what was saved.
+`),
+  );
+
+  server.registerPrompt(
+    "adjust_my_plan",
+    {
+      title: "Adjust my training plan",
+      description:
+        "Rework the current week's plan around a disruption — sickness, weather, schedule, fatigue — with the change recorded.",
+      argsSchema: {
+        what_happened: z
+          .string()
+          .optional()
+          .describe("What's forcing the change, e.g. 'woke up sick', 'legs are smoked', 'gym closed'"),
+      },
+    },
+    ({ what_happened }) =>
+      userMessage(`
+My training plan needs to change${what_happened && what_happened.trim() ? `: ${what_happened.trim()}` : " — ask me what happened first"}.
+
+1. \`get_training_plan\` for the current week; \`get_training_profile\` for constraints that bound the options.
+2. Understand the disruption before proposing: how long will it last, does it affect everything or just some modalities (sick vs. sore legs are different problems)?
+3. Propose the MINIMAL adjustment that protects the week's key sessions (e.g. keep the long run, drop an accessory day; swap a lower day for upper work when legs are the issue). Say what you'd change and why.
+4. On my confirmation, apply it: \`update_planned_session\` per session (move date, replace blocks, or mark skipped/cancelled) — or \`plan_week\` with \`change\` if the whole week needs redrawing. Use an honest change category; quote my reasoning in the summary.
+5. If this kind of disruption keeps recurring in the change history, propose a durable fix: a \`planning_constraint\` (via \`upsert_planning_constraint\`) or an insight.
+`),
+  );
+
+  server.registerPrompt(
+    "review_training_strategy",
+    {
+      title: "Review training strategy",
+      description:
+        "Periodic strategist session: goal & milestone progress against actuals, phase focus, and stale capability estimates.",
+      argsSchema: {},
+    },
+    () =>
+      userMessage(`
+Run a training strategy review — the periodic check that the goal → milestone → weekly-plan chain still makes sense.
+
+1. \`get_training_profile\` + \`get_goals\` — current goals, milestones, capabilities, constraints.
+2. \`query_data\` for progress against each active milestone: weekly mileage trend, strength progression on key lifts, adherence by week (the \`corpus://schema\` resource has starter queries).
+3. Milestone hygiene: mark achieved milestones (\`update_milestone_status\`), re-date ones that have drifted, and propose new ones where a gap between goal and next checkpoint is too large. Confirm before writing (\`upsert_milestone\`).
+4. Recommend the next block's training focus (e.g. 'aerobic base' → 'build') and say what changes about the weekly template; the focus lands on future weeks via \`plan_week\`.
+5. Sweep capability estimates for staleness against recent performances; update the ones that are off (\`upsert_capability_estimate\`, citing evidence).
+6. Close with a short written summary: on/off track per goal, what changes, and anything worth a \`save_insight\`.
 `),
   );
 }

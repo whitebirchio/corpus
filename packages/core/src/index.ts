@@ -17,6 +17,7 @@ export * from "./repos/meals.js";
 export * from "./repos/regimen.js";
 export * from "./repos/goals.js";
 export * from "./repos/training.js";
+export * from "./repos/athlete.js";
 export * from "./repos/labs.js";
 export * from "./repos/summary.js";
 export * from "./repos/trends.js";
