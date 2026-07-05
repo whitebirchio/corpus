@@ -6,6 +6,8 @@ made without you that you may want to review (each is cheap to change if you dis
 
 ## Action items (outside-repo, blocking end-to-end use)
 
+**Status: all 4 confirmed complete (2026-07-05).**
+
 1. **Google OAuth redirect URIs.** On the existing Google OAuth client (Cloud Console →
    Credentials → your client → Authorized redirect URIs) add:
    - `https://corpus-app.whitebirch.workers.dev/auth/callback` (production — adjust if the
