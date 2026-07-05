@@ -163,6 +163,64 @@ export interface DayBodyResponse {
   body: ApiBodyMeasurement | null;
 }
 
+export interface ApiPlannedMovement {
+  name: string;
+  sets: number | null;
+  reps: number | null;
+  repsText: string | null;
+  targetLoad: string | null;
+  targetRpe: number | null;
+  rest: string | null;
+  prescription: string | null;
+  notes: string | null;
+}
+
+export interface ApiPlannedBlock {
+  seq: number;
+  blockType: string;
+  scheme: string | null;
+  rounds: number | null;
+  timeCap: string | null;
+  targetDistance: string | null;
+  targetDuration: string | null;
+  targetPace: string | null;
+  structure: string | null;
+  targetRpe: number | null;
+  notes: string | null;
+  movements: ApiPlannedMovement[];
+}
+
+export type PlannedSessionStatus = "planned" | "completed" | "skipped" | "cancelled";
+
+export interface ApiPlannedSession {
+  id: string;
+  plannedDate: string;
+  title: string;
+  status: PlannedSessionStatus;
+  notes: string | null;
+  blocks: ApiPlannedBlock[];
+  linkedWorkouts: Array<{
+    id: string;
+    title: string | null;
+    startedAt: string;
+    duration: string | null;
+  }>;
+}
+
+export interface ApiPlanChange {
+  category: string;
+  summary: string;
+  plannedSessionId: string | null;
+  createdAt: string;
+}
+
+export interface PlanWeekResponse {
+  weekStart: string;
+  week: { focus: string | null; notes: string | null } | null;
+  sessions: ApiPlannedSession[];
+  changes: ApiPlanChange[];
+}
+
 export type TrendMetric =
   | "calories_in"
   | "body_battery"
@@ -235,6 +293,8 @@ export const api = {
     get<DayMetricsResponse>(`/api/days/${encodeURIComponent(date)}/metrics`),
   dayBody: (date: string) =>
     get<DayBodyResponse>(`/api/days/${encodeURIComponent(date)}/body`),
+  planWeek: (start?: string) =>
+    get<PlanWeekResponse>(`/api/plan/week${start ? `?start=${encodeURIComponent(start)}` : ""}`),
   trend: (metric: TrendMetric, from: string, to: string, bucket: TrendBucket) =>
     get<TrendResult>(
       `/api/trends/${metric}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&bucket=${bucket}`,

@@ -20,6 +20,7 @@ import {
   getDayNutrition,
   getDayWorkouts,
   getMealWithItems,
+  getTrainingPlan,
   getTrend,
   getUser,
   getWorkoutDetail,
@@ -29,6 +30,8 @@ import {
   todayIn,
   trendQuerySchema,
   type Db,
+  type PlannedBlockDetail,
+  type TrainingPlanResult,
   type TrendResult,
   type User,
   type UserCtx,
@@ -184,6 +187,18 @@ apiRoutes.get("/meals/:id", async (c) => {
   return c.json(detail);
 });
 
+apiRoutes.get("/plan/week", async (c) => {
+  const start = c.req.query("start");
+  if (start !== undefined && !localDateSchema.safeParse(start).success) {
+    throw new ApiError(400, "Invalid start — expected YYYY-MM-DD");
+  }
+  // Any date is normalized to its week's Monday in core (SPEC 04 §4.2).
+  const body = await runAsUser(c, async (db, ctx, user) =>
+    serializeTrainingPlan(await getTrainingPlan(db, ctx, start), user.unitPreference),
+  );
+  return c.json(body);
+});
+
 apiRoutes.get("/trends/:metric", async (c) => {
   const parsed = trendQuerySchema.safeParse({
     metric: c.req.param("metric"),
@@ -254,6 +269,61 @@ function serializeBlock(b: WorkoutBlockDetail, pref: Pref) {
         isFailure: s.isFailure,
         notes: s.notes,
       })),
+    })),
+  };
+}
+
+/** Planned week → wire shape: prescriptions as display strings (SPEC 04 §6). */
+function serializeTrainingPlan(plan: TrainingPlanResult, pref: Pref) {
+  return {
+    weekStart: plan.weekStart,
+    week: plan.week ? { focus: plan.week.focus, notes: plan.week.notes } : null,
+    sessions: plan.sessions.map((s) => ({
+      id: s.id,
+      plannedDate: s.plannedDate,
+      title: s.title,
+      status: s.status,
+      notes: s.notes,
+      blocks: s.blocks.map((b) => serializePlannedBlock(b, pref)),
+      linkedWorkouts: s.linkedWorkouts.map((w) => ({
+        id: w.sessionId,
+        title: w.title,
+        startedAt: w.startedAt,
+        duration: w.durationS != null ? formatDuration(w.durationS) : null,
+      })),
+    })),
+    changes: plan.changes.map((ch) => ({
+      category: ch.category,
+      summary: ch.summary,
+      plannedSessionId: ch.plannedSessionId,
+      createdAt: ch.createdAt,
+    })),
+  };
+}
+
+function serializePlannedBlock(b: PlannedBlockDetail, pref: Pref) {
+  return {
+    seq: b.seq,
+    blockType: b.blockType,
+    scheme: b.scheme,
+    rounds: b.roundsPlanned,
+    timeCap: b.timeCapS != null ? formatDuration(b.timeCapS) : null,
+    targetDistance: b.targetDistanceM != null ? formatDistance(b.targetDistanceM, pref) : null,
+    targetDuration: b.targetDurationS != null ? formatDuration(b.targetDurationS) : null,
+    targetPace: b.targetPaceSPerKm != null ? formatPace(b.targetPaceSPerKm, pref) : null,
+    structure: b.structure,
+    targetRpe: b.targetRpe,
+    notes: b.notes,
+    movements: b.movements.map((m) => ({
+      name: m.name,
+      sets: m.sets,
+      reps: m.reps,
+      repsText: m.repsText,
+      targetLoad: m.targetLoadKg != null ? formatMass(m.targetLoadKg, pref) : null,
+      targetRpe: m.targetRpe,
+      rest: m.restS != null ? formatDuration(m.restS) : null,
+      prescription: m.prescription,
+      notes: m.notes,
     })),
   };
 }

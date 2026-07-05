@@ -6,6 +6,7 @@ import {
   type MeResponse,
   type WorkoutDetailResponse,
 } from "../api.js";
+import { PlannedBlocks, StatusChip } from "../components/PlannedSession.js";
 import {
   addDays,
   fmtBucket,
@@ -30,9 +31,15 @@ export function Today({ me }: { me: MeResponse }) {
   const workouts = useData(() => api.dayWorkouts(date), [date]);
   const metrics = useData(() => api.dayMetrics(date), [date]);
   const body = useData(() => api.dayBody(date), [date]);
+  const plan = useData(() => api.planWeek(date), [date]);
 
   const day = nutrition.data;
   const sessions = workouts.data?.workouts ?? null;
+  // The planned session for the shown day; the card renders only when the
+  // week has a plan at all (SPEC 04 §6 — glanceable, not naggy).
+  const planned = plan.data?.week
+    ? (plan.data.sessions.find((s) => s.plannedDate === date) ?? null)
+    : null;
   const m = metrics.data?.metrics ?? null;
   const b = body.data?.body ?? null;
   const isToday = date === me.today;
@@ -115,6 +122,18 @@ export function Today({ me }: { me: MeResponse }) {
           </div>
         )}
       </section>
+
+      {planned ? (
+        <section className={`card${plan.stale ? " stale" : ""}`}>
+          <h2>
+            {isToday ? "Today's plan" : "Planned"}
+            <StatusChip status={planned.status} />
+          </h2>
+          <div className="plan-title">{planned.title}</div>
+          <PlannedBlocks blocks={planned.blocks} />
+          {planned.notes ? <div className="workout-notes">{planned.notes}</div> : null}
+        </section>
+      ) : null}
 
       {workouts.error ? <div className="card error-note">{workouts.error}</div> : null}
 

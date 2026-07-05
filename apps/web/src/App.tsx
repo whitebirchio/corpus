@@ -1,12 +1,13 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { api, ApiError, type MeResponse } from "./api.js";
 import { Login } from "./views/Login.js";
+import { Plan } from "./views/Plan.js";
 import { Today } from "./views/Today.js";
 
 // Keeps the chart library out of the initial bundle — Today stays light.
 const Trends = lazy(() => import("./views/Trends.js").then((m) => ({ default: m.Trends })));
 
-type Tab = "today" | "trends";
+type Tab = "today" | "plan" | "trends";
 
 type Session =
   | { state: "loading" }
@@ -15,7 +16,9 @@ type Session =
   | { state: "ready"; me: MeResponse };
 
 function tabFromHash(): Tab {
-  return location.hash === "#/trends" ? "trends" : "today";
+  if (location.hash === "#/trends") return "trends";
+  if (location.hash === "#/plan") return "plan";
+  return "today";
 }
 
 export function App() {
@@ -45,7 +48,7 @@ export function App() {
   }, []);
 
   const selectTab = (t: Tab) => {
-    location.hash = t === "trends" ? "#/trends" : "#/today";
+    location.hash = `#/${t}`;
     setTab(t);
   };
 
@@ -83,6 +86,8 @@ export function App() {
       <main className="app-main">
         {tab === "today" ? (
           <Today me={me} />
+        ) : tab === "plan" ? (
+          <Plan me={me} />
         ) : (
           <Suspense fallback={<div className="center-note">Loading…</div>}>
             <Trends me={me} />
@@ -96,6 +101,13 @@ export function App() {
             <path d="M3.5 9.5h17M8 2.8v3.4M16 2.8v3.4" />
           </svg>
           Today
+        </button>
+        <button className={tab === "plan" ? "active" : ""} onClick={() => selectTab("plan")}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M5 6.5h14M5 12h14M5 17.5h8" strokeLinecap="round" />
+            <path d="M16.5 16.5l1.8 1.8 3-3.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Plan
         </button>
         <button className={tab === "trends" ? "active" : ""} onClick={() => selectTab("trends")}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">

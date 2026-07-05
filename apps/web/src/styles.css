@@ -674,3 +674,51 @@ body {
   color: var(--danger);
   font-size: 13.5px;
 }
+
+/* --- training plan (specs/04-training-plans/SPEC.md §6) --- */
+
+.status-chip {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: 99px;
+  padding: 2px 9px;
+  border: 1px solid var(--border);
+  color: var(--ink-muted);
+}
+
+.status-chip.completed {
+  color: #3d9a50;
+  border-color: color-mix(in srgb, #3d9a50 40%, transparent);
+}
+
+.status-chip.skipped {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+.status-chip.planned {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.card h2 .status-chip {
+  float: right;
+}
+
+.plan-title {
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+}
+
+.plan-row.today .desc {
+  color: var(--accent);
+}
+
+.plan-row .desc.rest {
+  color: var(--ink-muted);
+  font-weight: 400;
+}
