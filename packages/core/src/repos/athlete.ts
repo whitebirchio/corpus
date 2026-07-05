@@ -233,7 +233,8 @@ export async function upsertPlanningConstraint(
 
 // --- the aggregate profile (§4.2) --------------------------------------------------
 
-export interface GoalWithMilestones {
+/** A goal digest for the training profile — slimmer than the full GoalWithMilestones. */
+export interface TrainingProfileGoal {
   id: string;
   title: string;
   priority: number;
@@ -250,7 +251,7 @@ export interface GoalWithMilestones {
 export interface TrainingProfile {
   homeLocation: string | null;
   currentWeek: { weekStart: string; focus: string | null } | null;
-  goals: GoalWithMilestones[];
+  goals: TrainingProfileGoal[];
   capabilities: Array<CapabilityEstimate & { movementName: string | null }>;
   equipment: EquipmentItem[];
   constraints: PlanningConstraint[];

@@ -35,10 +35,11 @@ export function registerPrompts(server: McpServer): void {
       userMessage(`
 Let's do my morning check-in${forDate(date)}.
 
-1. First call \`get_daily_summary\`${forDate(date)} to see what the overnight Garmin sync already captured (sleep, HRV, resting HR, steps, body battery, training readiness). Do NOT ask me for numbers it already has.
+1. First call \`get_daily_summary\`${forDate(date)} to see what the overnight Garmin sync already captured (sleep, HRV, resting HR, steps, body battery, training readiness) AND what I have planned today (\`todaysPlan\`). Do NOT ask me for numbers it already has.
 2. Ask me only for what's missing or subjective: how rested I feel (energy 1–5), any soreness, and my morning weigh-in if I took one.
 3. Call \`log_daily_checkin\` with just those fields (unit-tag the weight, e.g. { value: 178.2, unit: 'lb' }). It upserts by date, so it won't clobber the Garmin-measured fields.
 4. Echo back a one-line recap of the day's recovery picture and flag anything notable — poor sleep, low HRV or training readiness, or an elevated resting HR.
+5. If \`todaysPlan\` has a session (and it isn't already done), remind me what's on for today in a line. If recovery looks rough against what's planned — e.g. a hard session on a low-readiness day, or soreness where I'm about to train — proactively offer to adapt it (scale it, or swap with an easier day) and, if I agree, apply the change with \`update_planned_session\` (or walk through \`adjust_my_plan\`). If nothing's planned, offer \`plan_todays_workout\`.
 `),
   );
 

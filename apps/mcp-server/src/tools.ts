@@ -11,8 +11,7 @@ import {
   formatDuration,
   formatMass,
   formatPace,
-  getActiveGoals,
-  getMilestones,
+  getActiveGoalsWithMilestones,
   getTrainingPlan,
   getTrainingPlanShape,
   getTrainingProfile,
@@ -646,8 +645,9 @@ export function registerTools(
       title: "Get daily summary",
       description:
         "The morning-briefing payload for a date (default today): last night's sleep/HRV/RHR, today's macros vs targets, " +
-        "recent training with muscle-group volume (7d), active goals by priority, current regimen, standing insights, " +
-        "and today's observations. Call this FIRST in any daily conversation.",
+        "recent training with muscle-group volume (7d), today's planned session if any (todaysPlan — with its status and " +
+        "whether it's been done), active goals with milestones, current regimen, standing insights, and today's observations. " +
+        "Call this FIRST in any daily conversation. For the full prescription of todaysPlan, call get_training_plan.",
       inputSchema: { date: z.iso.date().optional() },
     },
     async ({ date }) => {
@@ -714,16 +714,7 @@ export function registerTools(
     },
     async () => {
       try {
-        return ok(
-          await run(async (db, c) => {
-            const goals = await getActiveGoals(db, c);
-            const milestones = await getMilestones(db, c);
-            return goals.map((g) => ({
-              ...g,
-              milestones: milestones.filter((m) => m.goalId === g.id),
-            }));
-          }),
-        );
+        return ok(await run((db, c) => getActiveGoalsWithMilestones(db, c)));
       } catch (e) {
         return err(e);
       }
@@ -992,11 +983,11 @@ export function registerTools(
       title: "User profile",
       description:
         "Who the user is and what they're working toward: display name, timezone, unit preference, and the " +
-        "active-goals digest ordered by priority. Read this to prime any conversation with context.",
+        "active-goals digest (with milestones) ordered by priority. Read this to prime any conversation with context.",
       mimeType: "text/markdown",
     },
     async (uri) => {
-      const goals = await run((db, c) => getActiveGoals(db, c));
+      const goals = await run((db, c) => getActiveGoalsWithMilestones(db, c));
       const text = renderProfile(getProps(), goals);
       return { contents: [{ uri: uri.href, mimeType: "text/markdown", text }] };
     },

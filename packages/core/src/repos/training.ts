@@ -4,7 +4,7 @@
  * linking, and the append-only change log. All mutations of a non-empty plan
  * record a plan_changes row in the same transaction (SPEC 04 decision #7).
  */
-import { and, asc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Db, UserCtx } from "../db/client.js";
 import {
   goalMilestones,
@@ -27,6 +27,7 @@ import type {
 } from "../schemas/training.js";
 import { addDays, mondayOf, todayIn } from "../time.js";
 import { toKg, toMeters, toSeconds, toSecondsPerKm } from "../units.js";
+import { getActiveGoals, type Goal } from "./goals.js";
 import { resolveMovement } from "./movements.js";
 
 export type GoalMilestone = typeof goalMilestones.$inferSelect;
@@ -136,6 +137,27 @@ export async function getMilestones(
     .from(goalMilestones)
     .where(and(...conditions))
     .orderBy(asc(goalMilestones.targetDate), asc(goalMilestones.createdAt));
+}
+
+export type GoalWithMilestones = Goal & { milestones: GoalMilestone[] };
+
+/**
+ * Active goals with their milestones attached — the single composer behind
+ * both `get_goals` and the daily summary, so every goal-surfacing path shows
+ * the strategy layer identically.
+ */
+export async function getActiveGoalsWithMilestones(
+  db: Db,
+  ctx: UserCtx,
+): Promise<GoalWithMilestones[]> {
+  const [activeGoals, milestones] = await Promise.all([
+    getActiveGoals(db, ctx),
+    getMilestones(db, ctx),
+  ]);
+  return activeGoals.map((g) => ({
+    ...g,
+    milestones: milestones.filter((m) => m.goalId === g.id),
+  }));
 }
 
 // --- the weekly plan (§3.2) ----------------------------------------------------
@@ -605,6 +627,71 @@ export interface TrainingPlanResult {
   week: TrainingWeek | null;
   sessions: PlannedSessionDetail[];
   changes: PlanChange[];
+}
+
+/**
+ * A single day's planned session as a compact digest — structural only (no
+ * loads/distances, so no unit conversion), mirroring the daily summary's
+ * `recentWorkouts` shape. Null when nothing is planned that day. Feeds
+ * `get_daily_summary` so the daily entry point is plan-aware.
+ */
+export interface PlannedDaySummary {
+  plannedSessionId: string;
+  title: string;
+  status: string;
+  blockTypes: string[];
+  movements: string[];
+  /** The logged workout reconciled to this session, if any. */
+  linkedSessionId: string | null;
+}
+
+export async function getPlannedDaySummary(
+  db: Db,
+  ctx: UserCtx,
+  date: string,
+): Promise<PlannedDaySummary | null> {
+  const session = (
+    await db
+      .select()
+      .from(plannedSessions)
+      .where(and(eq(plannedSessions.userId, ctx.userId), eq(plannedSessions.plannedDate, date)))
+  )[0];
+  if (!session) return null;
+
+  const blocks = await db
+    .select()
+    .from(plannedBlocks)
+    .where(eq(plannedBlocks.plannedSessionId, session.id))
+    .orderBy(asc(plannedBlocks.seq));
+  const blockIds = blocks.map((b) => b.id);
+
+  let movementNames: string[] = [];
+  if (blockIds.length > 0) {
+    const rows = await db
+      .select({ name: movements.name })
+      .from(plannedBlockMovements)
+      .innerJoin(movements, eq(plannedBlockMovements.movementId, movements.id))
+      .where(inArray(plannedBlockMovements.plannedBlockId, blockIds));
+    movementNames = [...new Set(rows.map((r) => r.name))];
+  }
+
+  const linked = (
+    await db
+      .select({ id: workoutSessions.id })
+      .from(workoutSessions)
+      .where(
+        and(eq(workoutSessions.userId, ctx.userId), eq(workoutSessions.plannedSessionId, session.id)),
+      )
+  )[0];
+
+  return {
+    plannedSessionId: session.id,
+    title: session.title,
+    status: session.status,
+    blockTypes: [...new Set(blocks.map((b) => b.blockType))],
+    movements: movementNames,
+    linkedSessionId: linked?.id ?? null,
+  };
 }
 
 /**

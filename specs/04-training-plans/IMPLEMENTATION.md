@@ -11,6 +11,15 @@ Built 2026-07-05, all three phases in one pass (commits: plan core → athlete m
 - **`capability_estimates` natural key** is a single `UNIQUE NULLS NOT DISTINCT` constraint (PG15+; Neon and PGlite both support it), not the partial-index pair mused about in §3.4.
 - **Capability estimate input** is `estimate: { value, unit }` with a wide unit enum (lb/kg, mi/km/m, min/mi, mi-per-week, …) canonicalized in core (`toCanonicalEstimate`) — the general unit-tagged-value invariant applied to a multi-quantity field.
 
+## Cohesion pass (woven into daily surfaces)
+
+A follow-up pass wired the plan into the pre-existing daily entry points so the epic reads as part of the fabric, not a parallel system:
+
+- **`get_daily_summary` now returns `todaysPlan`** — the day's planned session as a compact digest (title, status, blockTypes, movements, `linkedSessionId`), structurally mirroring the existing `recentWorkouts` shape and carrying no units (so no conversion in core). Full prescriptions still come from `get_training_plan`.
+- **Goals surface milestones everywhere** — a single `getActiveGoalsWithMilestones` composer now backs `get_goals`, `get_daily_summary.goals`, and the `corpus://profile` resource (which renders milestones as indented sub-lines), so no goal-surfacing path omits the strategy layer.
+- **`morning_checkin` prompt is plan-aware** — it reads `todaysPlan`, reminds what's on for the day, and when recovery looks rough against what's planned proactively offers to adapt via `update_planned_session` / `adjust_my_plan`. This is where the plan meets daily reality.
+- Note: `athlete.ts`'s profile-goal digest interface was renamed `TrainingProfileGoal` to free the name `GoalWithMilestones` for the shared full type.
+
 ## Verification status
 
 - Core: PGlite suites cover plan CRUD/re-plan semantics, change-log-in-transaction, linking (incl. re-link/unlink status reverts), milestones, equipment/capability/constraint upserts, and the profile aggregate (`test/training-plans.test.ts`, `milestones.test.ts`, `athlete.test.ts`).
