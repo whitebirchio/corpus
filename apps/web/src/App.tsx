@@ -6,8 +6,10 @@ import { Today } from "./views/Today.js";
 
 // Keeps the chart library out of the initial bundle — Today stays light.
 const Trends = lazy(() => import("./views/Trends.js").then((m) => ({ default: m.Trends })));
+// Same for the scanner: zxing-wasm only loads when the Scan tab opens.
+const Scan = lazy(() => import("./views/Scan.js").then((m) => ({ default: m.Scan })));
 
-type Tab = "today" | "plan" | "trends";
+type Tab = "today" | "plan" | "scan" | "trends";
 
 type Session =
   | { state: "loading" }
@@ -18,6 +20,7 @@ type Session =
 function tabFromHash(): Tab {
   if (location.hash === "#/trends") return "trends";
   if (location.hash === "#/plan") return "plan";
+  if (location.hash === "#/scan") return "scan";
   return "today";
 }
 
@@ -88,6 +91,10 @@ export function App() {
           <Today me={me} />
         ) : tab === "plan" ? (
           <Plan me={me} />
+        ) : tab === "scan" ? (
+          <Suspense fallback={<div className="center-note">Loading…</div>}>
+            <Scan me={me} />
+          </Suspense>
         ) : (
           <Suspense fallback={<div className="center-note">Loading…</div>}>
             <Trends me={me} />
@@ -108,6 +115,13 @@ export function App() {
             <path d="M16.5 16.5l1.8 1.8 3-3.4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           Plan
+        </button>
+        <button className={tab === "scan" ? "active" : ""} onClick={() => selectTab("scan")}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16" strokeLinecap="round" />
+            <path d="M7.5 9.5v5M10.5 9.5v5M13.5 9.5v5M16.5 9.5v5" strokeLinecap="round" />
+          </svg>
+          Scan
         </button>
         <button className={tab === "trends" ? "active" : ""} onClick={() => selectTab("trends")}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">

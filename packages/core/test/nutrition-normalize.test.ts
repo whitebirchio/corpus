@@ -97,6 +97,22 @@ describe("normalizeOffProduct", () => {
     expect(c?.portions).toEqual([{ label: "1 scoop (31g)", grams: 31 }]);
   });
 
+  it("tolerates OFF's explicit nulls without coercing them to 0", () => {
+    const c = normalizeOffProduct({
+      code: "3017620422003",
+      product_name: "Nutella",
+      brands: null,
+      serving_size: null,
+      serving_quantity: null,
+      serving_quantity_unit: "g",
+      nutriments: { "energy-kcal_100g": 539, proteins_100g: 6.3, sodium_100g: null },
+    });
+    expect(c?.per100g.calories).toBe(539);
+    expect(c?.brand).toBeUndefined();
+    expect(c?.portions).toEqual([]);
+    expect(c?.per100g.micros?.["sodium_mg"]).toBeUndefined();
+  });
+
   it("rejects products without a name or kcal", () => {
     expect(normalizeOffProduct({ code: "123", nutriments: {} })).toBeNull();
     expect(

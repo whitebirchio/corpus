@@ -1,6 +1,6 @@
 # Nutrition accuracy — epic spec
 
-**Status:** Phases 1–2 built 2026-07-18 (plus `lookup_barcode` pulled forward from phase 3) — see [IMPLEMENTATION.md](IMPLEMENTATION.md) for deviations and the manual steps (Neon migration, `FDC_API_KEY` secret, layer-3 smoke, seed session). Phase 3 remaining: PWA scanner UI.
+**Status:** All three phases built 2026-07-18 — see [IMPLEMENTATION.md](IMPLEMENTATION.md) for deviations and remaining manual steps (web-worker `FDC_API_KEY`, on-phone scanner smoke test, finishing the catalog seed session).
 **Owner:** Scott Schmalz
 
 ## 1. Motivating context

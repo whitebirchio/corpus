@@ -26,7 +26,20 @@ export default defineConfig({
       workbox: {
         // Auth redirects and API calls must never be answered by the SPA shell.
         navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
+        // The zxing decoder wasm (~1 MB) is Scan-tab-only: keep it out of the
+        // install-time precache and cache it on first use instead. Its hashed
+        // filename makes the cache-first entry effectively immutable.
+        globIgnores: ["**/*.wasm"],
+        maximumFileSizeToCacheInBytes: 700 * 1024,
         runtimeCaching: [
+          {
+            urlPattern: /\/assets\/.*\.wasm$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "corpus-wasm",
+              expiration: { maxEntries: 2 },
+            },
+          },
           {
             // Offline-tolerant, not offline-capable (SPEC §4): a cold open
             // with no network shows the last-seen dashboard for a day.

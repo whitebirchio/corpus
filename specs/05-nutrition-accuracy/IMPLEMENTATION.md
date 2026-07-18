@@ -1,6 +1,6 @@
 # Nutrition accuracy — implementation notes
 
-**Built 2026-07-18** on branch `epic-05-nutrition-accuracy`: phase 1 (protocol prompt) and phase 2 (catalog + recipes + lookups), plus the `lookup_barcode` MCP tool pulled forward from phase 3. Remaining: manual steps below, then phase 3's PWA scanner UI.
+**Built 2026-07-18** on branch `epic-05-nutrition-accuracy`, in two passes: phases 1–2 (protocol prompt, catalog + recipes + lookups, `lookup_barcode` MCP tool pulled forward) shipped and deployed earlier the same day (Neon migration applied, `FDC_API_KEY` set, catalog seeding begun); phase 3 (PWA barcode scanner) followed — see §Phase 3 below.
 
 ## What landed
 
@@ -28,9 +28,30 @@ Tests: `foods`, `recipes`, `meals-catalog`, `nutrition-normalize` (+20; suite at
 3. **`portionLabel` is a log-input field, not a column** — resolution inputs are `foodId` + (`grams` | `portionLabel` × `quantity`); what persists is `grams_resolved`.
 4. **Per-100g column names** came out as `calories_per100g` etc. via drizzle's casing (not `calories_per_100g`).
 
-## Manual steps before merge/deploy
+## Phase 3 — PWA barcode scanner (built 2026-07-18, second pass)
 
-1. **Neon migration**: `npm run db:migrate -w @corpus/core` against a dev branch first, then prod (`drizzle/0004_amazing_richard_fisk.sql`).
-2. **Optional but recommended**: get a free api.data.gov key and `npx wrangler secret put FDC_API_KEY` in `apps/mcp-server` (also add to `.dev.vars` for layer 3). Without it, external search is OFF-only.
-3. **Layer-3 smoke test**: `npm run dev` + MCP Inspector → `search_foods` ("ascent whey"), `upsert_food`, `log_meal` with `foodId`, `get_recipe`, `lookup_barcode`.
-4. **Seed session** (conversational, after deploy): photograph labels of the ~30 staples; create verified entries; attach historical aliases from a `query_data` sweep of distinct `meal_items.name`.
+The PWA's first write surface, on the epic-2/3 write-forward path (the CSRF
+middleware and resource-shaped routes were already waiting for it).
+
+Worker (`apps/web/worker`):
+
+- `nutrition.ts` — barcode-only fetch adapter (OFF → FDC Branded), the web twin of the MCP worker's; duplicated per the `db.ts` precedent (revisit on a third). Text search stays chat-side.
+- `api.ts` — `GET /api/foods/barcode/:gtin` (catalog via `getFoodByBarcode` → external candidate → `not_found`), `POST /api/foods` (upsertFood; how an external hit becomes a catalog entry with the scanned barcode attached), `POST /api/meals` (core `logMeal` — same path as chat: server-side macro resolution, near-duplicate detection). Catalog foods serialize with per-portion macros precomputed server-side.
+- `FDC_API_KEY` (optional secret) added to the web worker's Env; set it with `npx wrangler secret put FDC_API_KEY` in `apps/web` too.
+
+Client (`apps/web/src`):
+
+- `views/Scan.tsx` — lazy-loaded 4th tab. Camera via `getUserMedia`, decoding via the `barcode-detector` ponyfill (zxing-wasm; iOS Safari has no native `BarcodeDetector`). Flow: detect EAN/UPC → lookup → confirm card (portion picker + ½-step quantity stepper, meal type inferred from time of day) → log → summary. External hits offer "Save to catalog & log" (FDC saves `verified`, OFF unverified); unknown barcodes point back to chat + label photo. `possible_duplicate` renders the candidates with an explicit "Log anyway" (`allowDuplicate`).
+- The zxing wasm (~1 MB) is bundled as a hashed asset (no CDN fetch) but excluded from the SW precache (`globIgnores`) and runtime-cached on first scan instead — install download stays at ~656 KiB. `zxing-wasm` is pinned exactly to the version `barcode-detector` pins, so the bundled asset can never drift from the decoder runtime.
+
+Verified: OFF v2 response shape checked live (which surfaced that OFF sends explicit `null`s — `normalizeOffProduct` now treats null like absent rather than coercing to 0, with a regression test); routes probed on `wrangler dev` (mounted, 401-gated). NOT yet verified: the authenticated camera→scan→log loop on a real phone — needs Scott's sign-in.
+
+## Manual steps
+
+Phases 1–2 (all done 2026-07-18): Neon migration 0004 applied; MCP worker `FDC_API_KEY` set; merged to main and CI-deployed; catalog seeding begun (Ascent whey first).
+
+Phase 3, remaining:
+
+1. `npx wrangler secret put FDC_API_KEY` in `apps/web` (the web worker has its own secret store; without it, barcode fallback is OFF-only) — and add it to `apps/web/.dev.vars` for local dev.
+2. On-phone smoke test after deploy: sign in, Scan tab, scan the Ascent bag (should hit the catalog entry seeded earlier), a packaged item not in the catalog (external → save & log), and any produce sticker (not_found path).
+3. Continue the seed session for the remaining staples.

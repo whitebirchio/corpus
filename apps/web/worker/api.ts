@@ -1,7 +1,8 @@
 /**
  * The REST surface (specs/02-pwa-client/IMPLEMENTATION.md §3.1): thin
- * validate → withUserDb → core repo → serialize shells, GET-only in v1 but
- * shaped as resources so PATCH/DELETE /meals/:id slot in later (SPEC §5.2).
+ * validate → withUserDb → core repo → serialize shells. GET-only until the
+ * barcode-logging writes (specs/05 §5) landed on the write-forward path the
+ * routes were shaped for (SPEC §5.2).
  *
  * Every request re-loads the user row inside the same RLS transaction as the
  * repo call — timezone/unit changes apply immediately and the allowlist is
@@ -19,6 +20,7 @@ import {
   getDailyMetrics,
   getDayNutrition,
   getDayWorkouts,
+  getFoodByBarcode,
   getMealWithItems,
   getTrainingPlan,
   getTrend,
@@ -26,10 +28,16 @@ import {
   getWorkoutDetail,
   kgToLb,
   localDate as localDateSchema,
+  logMeal,
+  logMealInput,
+  macrosForGrams,
   metersToMiles,
   todayIn,
   trendQuerySchema,
+  upsertFood,
+  upsertFoodInput,
   type Db,
+  type Food,
   type PlannedBlockDetail,
   type TrainingPlanResult,
   type TrendResult,
@@ -40,6 +48,7 @@ import {
 } from "@corpus/core";
 import { isSecureRequest, allowedEmails } from "./auth.js";
 import { withUserDb } from "./db.js";
+import { lookupBarcodeExternal } from "./nutrition.js";
 import { newSession, sessionCookie, signSession, verifySession, SESSION_COOKIE } from "./session.js";
 
 /** Thrown by handlers; mapped to a JSON error response in index.ts. */
@@ -185,6 +194,70 @@ apiRoutes.get("/meals/:id", async (c) => {
   const detail = await runAsUser(c, (db, ctx) => getMealWithItems(db, ctx, id!));
   if (!detail) throw new ApiError(404, "Meal not found");
   return c.json(detail);
+});
+
+// --- barcode logging (specs/05-nutrition-accuracy/SPEC.md §5) ---------------
+// The PWA's first write surface, on the write-forward path epic 3 opened.
+
+const GTIN = /^\d{8,14}$/;
+
+/**
+ * Catalog food → wire shape with per-portion macros precomputed server-side,
+ * so the client renders numbers without doing nutrition math (SPEC §3 spirit:
+ * conversions at the adapter edge).
+ */
+function serializeFood(f: Food) {
+  return {
+    id: f.id,
+    name: f.canonicalName,
+    brand: f.brand,
+    verified: f.verified,
+    per100g: {
+      calories: f.caloriesPer100g,
+      proteinG: f.proteinPer100g,
+      carbsG: f.carbsPer100g,
+      fatG: f.fatPer100g,
+    },
+    portions: f.portions.map((p) => ({
+      label: p.label,
+      grams: p.grams,
+      macros: macrosForGrams(f, p.grams),
+    })),
+  };
+}
+
+apiRoutes.get("/foods/barcode/:gtin", async (c) => {
+  const gtin = c.req.param("gtin");
+  if (!gtin || !GTIN.test(gtin)) throw new ApiError(400, "Invalid barcode — expected 8–14 digits");
+  const catalog = await runAsUser(c, (db, ctx) => getFoodByBarcode(db, ctx, gtin));
+  if (catalog) return c.json({ status: "catalog" as const, food: serializeFood(catalog) });
+  // Not ours yet: OFF → FDC Branded, normalized in core. The client offers
+  // save-and-log, which round-trips through POST /foods so the entry sticks.
+  const candidate = await lookupBarcodeExternal(c.env, gtin);
+  if (candidate) return c.json({ status: "external" as const, candidate });
+  return c.json({ status: "not_found" as const });
+});
+
+apiRoutes.post("/foods", async (c) => {
+  const parsed = upsertFoodInput.safeParse(await c.req.json());
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    throw new ApiError(400, `Invalid food: ${issue?.path.join(".")} ${issue?.message}`);
+  }
+  const result = await runAsUser(c, (db, ctx) => upsertFood(db, ctx, parsed.data));
+  return c.json({ status: result.status, food: serializeFood(result.food) });
+});
+
+apiRoutes.post("/meals", async (c) => {
+  const parsed = logMealInput.safeParse(await c.req.json());
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    throw new ApiError(400, `Invalid meal: ${issue?.path.join(".")} ${issue?.message}`);
+  }
+  // Same core path as the MCP log_meal tool: catalog items resolved
+  // server-side, near-duplicate detection included.
+  const result = await runAsUser(c, (db, ctx) => logMeal(db, ctx, parsed.data));
+  return c.json(result);
 });
 
 apiRoutes.get("/plan/week", async (c) => {

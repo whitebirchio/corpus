@@ -11,4 +11,9 @@ interface Env {
   GOOGLE_CLIENT_SECRET: string;
   /** HMAC-SHA256 key for the stateless session cookie. Rotate to revoke all sessions. */
   SESSION_SECRET: string;
+  /**
+   * Optional api.data.gov key for USDA FDC barcode fallback (specs/05 §5).
+   * Without it, unknown-to-OFF barcodes just come back not_found.
+   */
+  FDC_API_KEY?: string;
 }

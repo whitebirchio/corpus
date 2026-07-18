@@ -8,19 +8,21 @@
 import type { FoodPortion } from "../db/schema.js";
 import type { FoodCandidate, Per100g } from "./types.js";
 
+// OFF sends explicit nulls for absent fields (verified against the live API),
+// so every field must tolerate null, and num() must not coerce it to 0.
 interface OffProduct {
   code?: string;
-  product_name?: string;
-  product_name_en?: string;
-  brands?: string;
-  serving_size?: string;
-  serving_quantity?: number | string;
-  serving_quantity_unit?: string;
-  nutriments?: Record<string, number | string | undefined>;
+  product_name?: string | null;
+  product_name_en?: string | null;
+  brands?: string | null;
+  serving_size?: string | null;
+  serving_quantity?: number | string | null;
+  serving_quantity_unit?: string | null;
+  nutriments?: Record<string, number | string | null | undefined>;
 }
 
-const num = (v: number | string | undefined): number | undefined => {
-  if (v === undefined || v === "") return undefined;
+const num = (v: number | string | null | undefined): number | undefined => {
+  if (v === undefined || v === null || v === "") return undefined;
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? n : undefined;
 };

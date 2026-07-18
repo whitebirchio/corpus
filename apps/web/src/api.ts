@@ -258,6 +258,73 @@ export interface TrendResult {
   series: TrendSeries[];
 }
 
+// --- barcode logging (specs/05 §5) ------------------------------------------
+
+export interface ApiFoodPortion {
+  label: string;
+  grams: number;
+  macros: MacroTotals & { micros?: Record<string, number> };
+}
+
+export interface ApiFood {
+  id: string;
+  name: string;
+  brand: string | null;
+  verified: boolean;
+  per100g: MacroTotals;
+  portions: ApiFoodPortion[];
+}
+
+/** External-DB candidate, core's normalized shape riding the wire unchanged. */
+export interface ApiFoodCandidate {
+  name: string;
+  brand?: string;
+  barcode?: string;
+  source: "fdc" | "off";
+  sourceRef: string;
+  per100g: MacroTotals & { micros?: Record<string, number> };
+  portions: Array<{ label: string; grams: number }>;
+}
+
+export type BarcodeLookupResponse =
+  | { status: "catalog"; food: ApiFood }
+  | { status: "external"; candidate: ApiFoodCandidate }
+  | { status: "not_found" };
+
+export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+
+export interface LogMealRequest {
+  mealType: MealType;
+  description: string;
+  items: Array<{
+    name: string;
+    foodId?: string;
+    portionLabel?: string;
+    quantity?: number;
+    grams?: number;
+    unitNote?: string;
+  }>;
+  allowDuplicate?: boolean;
+}
+
+export type LogMealResponse =
+  | { status: "logged"; meal: ApiMeal; itemCount: number }
+  | {
+      status: "possible_duplicate";
+      candidates: Array<{ mealId: string; description: string; calories: number; eatenAt: string }>;
+    };
+
+export interface UpsertFoodRequest {
+  canonicalName: string;
+  brand?: string;
+  barcode?: string;
+  per100g: MacroTotals & { micros?: Record<string, number> };
+  portions?: Array<{ label: string; grams: number }>;
+  source: "label" | "fdc" | "off" | "estimate";
+  sourceRef?: string;
+  verified?: boolean;
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -268,7 +335,23 @@ export class ApiError extends Error {
 }
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(path, { headers: { accept: "application/json" } });
+  return request(path, { headers: { accept: "application/json" } });
+}
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  return request(path, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      "x-corpus-csrf": "1",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+async function request<T>(path: string, init: RequestInit): Promise<T> {
+  const res = await fetch(path, init);
   if (!res.ok) {
     let message = `Request failed (${res.status})`;
     try {
@@ -301,4 +384,9 @@ export const api = {
     ),
   logout: () =>
     fetch("/auth/logout", { method: "POST", headers: { "x-corpus-csrf": "1" } }),
+  barcodeLookup: (gtin: string) =>
+    get<BarcodeLookupResponse>(`/api/foods/barcode/${encodeURIComponent(gtin)}`),
+  upsertFood: (food: UpsertFoodRequest) =>
+    post<{ status: "created" | "updated"; food: ApiFood }>("/api/foods", food),
+  logMeal: (meal: LogMealRequest) => post<LogMealResponse>("/api/meals", meal),
 };
