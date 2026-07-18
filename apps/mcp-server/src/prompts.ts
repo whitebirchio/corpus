@@ -88,6 +88,28 @@ Help me decide what workout to do today${focus && focus.trim() ? `, biased towar
   );
 
   server.registerPrompt(
+    "log_meal_conversation",
+    {
+      title: "Log a meal (photo + description)",
+      description:
+        "Capture a meal accurately from a photo + short caption and/or a description — itemized, portion-checked, with honest confidence.",
+      argsSchema: {},
+    },
+    () =>
+      userMessage(`
+I want to log a meal. Capture it accurately into \`log_meal\` (specs/05-nutrition-accuracy/SPEC.md, phase 1 protocol).
+
+- If I haven't shared it yet, ask what I ate — a photo plus a short caption is the preferred input; a plain description works too.
+- Itemize every component, including the easy-to-miss ones: cooking fat, dressings, sauces, cheese, beverages. Record each portion verbatim in \`unitNote\` ("1 cup", "2 scoops", "6 oz"); when I give an exact weight, use it as-is — never round it away.
+- Use the photo two ways: to spot items I didn't mention, and to sanity-check my stated portions against visual cues (plate coverage, depth, utensil scale). If the photo and my caption disagree by more than ~25% on a calorie-dense item, ask ONE clarifying question; otherwise proceed. Never block a log on uncertainty — save the best estimate and flag it.
+- Set per-item \`confidence\` honestly: "high" for label-backed or weighed items, "medium" for solid visual estimates, "low" for guesses (hidden oils, restaurant portions). Include key micros when inferable: fiber_g, sugar_g, sat_fat_g, sodium_mg.
+- Keep item names consistent with my history so the same food doesn't fragment across spellings (e.g. always "Ascent vanilla whey protein"). If unsure what name I've used before, check recent \`meal_items\` via \`query_data\`.
+- When overall confidence is medium or lower, put a plausible calorie range in \`notes\` (e.g. "~620 kcal, plausible 520-750").
+- After saving, echo a one-line recap (items, total kcal/P/C/F) and where the day now stands against my targets (\`get_daily_summary\`). If the result is \`possible_duplicate\`, show me the candidates and ask before retrying.
+`),
+  );
+
+  server.registerPrompt(
     "finish_my_macros",
     {
       title: "Finish my macros",
