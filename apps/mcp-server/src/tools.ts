@@ -49,6 +49,15 @@ import {
   updateMealShape,
   deleteMeal,
   deleteMealShape,
+  getFoodByBarcode,
+  searchFoodsCatalog,
+  searchFoodsShape,
+  upsertFood,
+  upsertFoodShape,
+  saveRecipe,
+  saveRecipeShape,
+  expandRecipe,
+  getRecipeShape,
   updateWorkout,
   updateWorkoutShape,
   deleteWorkout,
@@ -79,6 +88,7 @@ import {
   type UserCtx,
 } from "@corpus/core";
 import { queryData, withUserDb } from "./db.js";
+import { lookupBarcodeExternal, searchExternalFoods } from "./nutrition.js";
 import { renderProfile } from "./profile.js";
 import { renderTrainingProfile } from "./trainingProfile.js";
 import { SCHEMA_DOC } from "./schemaDoc.js";
@@ -186,6 +196,8 @@ export function registerTools(
       description:
         "Record a meal. Prefer itemized entries (items[] with macros and key micros like fiber_g/sat_fat_g/cholesterol_mg) when the meal was described or photographed; " +
         "fall back to totals{} when the user just reports numbers. Totals are computed from items automatically. " +
+        "When an item is a known catalog food (search_foods), set foodId plus grams — or portionLabel + quantity — " +
+        "and the server computes exact macros, overriding any estimates you supply. " +
         DEDUP_NOTE,
       inputSchema: logMealShape,
     },
@@ -245,6 +257,136 @@ export function registerTools(
     async ({ mealId }) => {
       try {
         return ok(await run((db, c) => deleteMeal(db, c, mealId)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  // --- food catalog & recipes (specs/05-nutrition-accuracy/SPEC.md §4) -------
+
+  server.registerTool(
+    "search_foods",
+    {
+      title: "Search foods (catalog + nutrition DBs)",
+      description:
+        "Resolve a food before logging: searches the personal catalog (canonical names + aliases) first, " +
+        "then USDA FoodData Central and Open Food Facts. Returns CANDIDATES — when the match isn't an exact " +
+        "catalog hit, confirm the right one with the user before using it; never bind silently. " +
+        "Save a confirmed external pick with upsert_food (aliases = how the user says it) so next time it's exact. " +
+        "If nothing matches, log the meal anyway with your best estimate at confidence 'low'.",
+      inputSchema: searchFoodsShape,
+    },
+    async (input) => {
+      try {
+        const parsed = z.object(searchFoodsShape).parse(input);
+        const limit = parsed.limit ?? 8;
+        const catalog = await run((db, c) => searchFoodsCatalog(db, c, parsed.query, limit));
+        // An exact catalog hit is authoritative — skip the network round-trips.
+        const exact = catalog.some(
+          (f) =>
+            f.canonicalName.toLowerCase() === parsed.query.trim().toLowerCase() ||
+            f.aliases.some((a) => a.toLowerCase() === parsed.query.trim().toLowerCase()),
+        );
+        const external = exact
+          ? { candidates: [], sourcesQueried: [] }
+          : await searchExternalFoods(env, parsed.query, Math.min(limit, 5));
+        return ok({ catalog, external });
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "upsert_food",
+    {
+      title: "Save a food to the personal catalog",
+      description:
+        "Create or update a catalog food. Macros are PER 100 G — convert label servings first " +
+        "(per-serving values ÷ serving grams × 100) and carry the serving into portions " +
+        "(e.g. [{label:'1 scoop', grams:31}]) so household logging resolves to grams server-side. " +
+        "Matches an existing entry by barcode, canonical name, or alias (case-insensitive) and merges " +
+        "aliases additively — renaming demotes the old name to an alias, nothing is lost. " +
+        "Set verified=true only when the numbers were read off the actual label/DB entry, not estimated.",
+      inputSchema: upsertFoodShape,
+    },
+    async (input) => {
+      try {
+        const parsed = z.object(upsertFoodShape).parse(input);
+        return ok(await run((db, c) => upsertFood(db, c, parsed)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "save_recipe",
+    {
+      title: "Save a recipe (reusable meal)",
+      description:
+        "Snapshot a repeated composite meal ('my protein smoothie') as catalog foods + gram amounts so " +
+        "logging it becomes one utterance. Items must reference catalog foodIds (search_foods / upsert_food " +
+        "first); grams are for the WHOLE recipe, with servings saying how many it makes. " +
+        "Saving an existing name replaces its item list.",
+      inputSchema: saveRecipeShape,
+    },
+    async (input) => {
+      try {
+        const parsed = z.object(saveRecipeShape).parse(input);
+        return ok(await run((db, c) => saveRecipe(db, c, parsed)));
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "get_recipe",
+    {
+      title: "Expand a saved recipe for logging",
+      description:
+        "Fetch a recipe by name or alias (fuzzy) and expand it to log-ready items — foodId + grams with " +
+        "server-computed macros, scaled to the servings eaten. Pass the items straight into log_meal. " +
+        "Status 'not_found' means no recipe matched; offer save_recipe.",
+      inputSchema: getRecipeShape,
+    },
+    async (input) => {
+      try {
+        const parsed = z.object(getRecipeShape).parse(input);
+        const detail = await run((db, c) =>
+          expandRecipe(db, c, parsed.name, parsed.servings ?? 1),
+        );
+        return ok(detail ?? { status: "not_found", name: parsed.name });
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "lookup_barcode",
+    {
+      title: "Look up a food by barcode",
+      description:
+        "Resolve a GTIN/UPC (typed, pasted, or read off a label photo) to a food: personal catalog first, " +
+        "then Open Food Facts, then USDA Branded. On an external hit, confirm with the user and save it " +
+        "via upsert_food WITH the barcode so future scans are instant. Status 'not_found' means no source " +
+        "knew it — ask for a nutrition-label photo instead.",
+      inputSchema: {
+        gtin: z
+          .string()
+          .regex(/^\d{8,14}$/)
+          .describe("Barcode digits (UPC-A/EAN-13)"),
+      },
+    },
+    async ({ gtin }) => {
+      try {
+        const catalogHit = await run((db, c) => getFoodByBarcode(db, c, gtin));
+        if (catalogHit) return ok({ status: "catalog", food: catalogHit });
+        const external = await lookupBarcodeExternal(env, gtin);
+        return ok(external ? { status: "external", candidate: external } : { status: "not_found" });
       } catch (e) {
         return err(e);
       }

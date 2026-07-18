@@ -198,6 +198,18 @@ export const mealItemInput = z.object({
   name: z.string().min(1),
   quantity: z.number().positive().optional(),
   unitNote: z.string().optional().describe("Verbatim portion, e.g. '1 cup', '6 oz'"),
+  // Catalog binding (specs/05-nutrition-accuracy/SPEC.md §4.2): when foodId is
+  // set, the server computes macros from grams (or portionLabel × quantity) and
+  // any agent-supplied macros are overridden.
+  foodId: z
+    .uuid()
+    .optional()
+    .describe("Catalog food from search_foods; macros computed server-side"),
+  grams: z.number().positive().optional().describe("Total grams eaten, when known"),
+  portionLabel: z
+    .string()
+    .optional()
+    .describe("Catalog portion to scale by quantity, e.g. 'scoop' — not free text"),
   calories: z.number().nonnegative().optional(),
   proteinG: z.number().nonnegative().optional(),
   carbsG: z.number().nonnegative().optional(),

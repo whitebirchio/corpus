@@ -45,8 +45,11 @@ Example — working sets per muscle group, last 7 days:
 ## Nutrition
 - nutrition_targets(effective_date UNIQUE/user, calories, protein_g, carbs_g, fat_g, fiber_g) — the row with the greatest effective_date <= a day governs that day
 - meals(eaten_at, local_date, meal_type: breakfast|lunch|dinner|snack, description, granularity: itemized|totals, calories, protein_g, carbs_g, fat_g, source, notes)
-- meal_items(meal_id, seq, name, quantity, unit_note, calories, protein_g, carbs_g, fat_g, micros jsonb, estimate_confidence)
+- meal_items(meal_id, seq, name, quantity, unit_note, food_id -> foods NULL=unresolved, grams_resolved, calories, protein_g, carbs_g, fat_g, micros jsonb, estimate_confidence)
   micros keys: fiber_g, sugar_g, sat_fat_g, sodium_mg, cholesterol_mg, potassium_mg (numbers; use (micros->>'fiber_g')::float)
+- foods(canonical_name UNIQUE/user (lower), brand, aliases text[], barcode UNIQUE/user, calories_per100g, protein_per100g, carbs_per100g, fat_per100g, micros jsonb per 100 g, portions jsonb [{label,grams}], source: label|fdc|off|estimate, source_ref, verified) — personal catalog; macros stored per 100 g
+- recipes(name UNIQUE/user (lower), aliases text[], servings, notes); recipe_items(recipe_id, seq, food_id -> foods, grams) — per-serving totals derived on read
+  repeated low-confidence meal_items with no food_id are catalog candidates (weekly review sweep)
 
 ## Medications & supplements
 - regimen_items(name, type: medication|supplement, dose_amount, dose_unit, schedule_text, schedule jsonb, purpose, prescriber, started_on, ended_on NULL=active, notes) — dose changes end a row and open a new one, so history is the row sequence

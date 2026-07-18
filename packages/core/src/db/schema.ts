@@ -609,6 +609,10 @@ export const mealItems = pgTable(
     /** fiber_g, sugar_g, sat_fat_g, sodium_mg, cholesterol_mg, potassium_mg, ... */
     micros: jsonb().$type<Record<string, number>>(),
     estimateConfidence: estimateConfidence(),
+    // Catalog binding (specs/05-nutrition-accuracy/SPEC.md §4.1): which food this
+    // item was resolved against and the grams the server computed macros from.
+    foodId: uuid().references(() => foods.id, { onDelete: "set null" }),
+    gramsResolved: doublePrecision(),
     createdAt: createdAt(),
   },
   (t) => [
@@ -1132,4 +1136,102 @@ export const planningConstraints = pgTable(
     index("planning_constraints_user_active_idx").on(t.userId, t.active),
     ownerPolicy(t),
   ],
+);
+
+// ---------------------------------------------------------------------------
+// Personal food catalog & recipes (specs/05-nutrition-accuracy/SPEC.md §4)
+// ---------------------------------------------------------------------------
+
+export const foodSource = pgEnum("food_source", ["label", "fdc", "off", "estimate"]);
+
+/** One household portion of a food, e.g. { label: "1 scoop", grams: 31 }. */
+export interface FoodPortion {
+  label: string;
+  grams: number;
+}
+
+/**
+ * Per-user verified food catalog — demand-driven, not a mirror of any global
+ * DB (SPEC 05 decision #3). Macros are stored per 100 g (canonical mass
+ * basis); `portions` maps household measures to grams so the server, never
+ * the LLM, does portion→gram→macro math (SPEC 05 decision #1).
+ */
+export const foods = pgTable(
+  "foods",
+  {
+    id: id(),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    canonicalName: text().notNull(),
+    brand: text(),
+    /** Every name this food gets logged under; matched case-insensitively. */
+    aliases: text().array().notNull().default([]),
+    barcode: text(), // GTIN/UPC, digits as scanned/typed
+    caloriesPer100g: doublePrecision().notNull(),
+    proteinPer100g: doublePrecision().notNull(),
+    carbsPer100g: doublePrecision().notNull(),
+    fatPer100g: doublePrecision().notNull(),
+    /** Per 100 g, same keys as meal_items.micros: fiber_g, sugar_g, sat_fat_g, sodium_mg, ... */
+    micros: jsonb().$type<Record<string, number>>(),
+    portions: jsonb().$type<FoodPortion[]>().notNull().default([]),
+    source: foodSource().notNull(),
+    sourceRef: text(), // fdcId / Open Food Facts code
+    verified: boolean().notNull().default(false),
+    notes: text(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("foods_user_name_uq").on(t.userId, sql`lower(${t.canonicalName})`),
+    uniqueIndex("foods_user_barcode_uq")
+      .on(t.userId, t.barcode)
+      .where(sql`${t.barcode} is not null`),
+    ownerPolicy(t),
+  ],
+);
+
+/**
+ * Reusable composite meals ("my protein smoothie") — items reference catalog
+ * foods by grams; per-serving totals are derived on read, never stored.
+ */
+export const recipes = pgTable(
+  "recipes",
+  {
+    id: id(),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text().notNull(),
+    aliases: text().array().notNull().default([]),
+    servings: doublePrecision().notNull().default(1),
+    notes: text(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("recipes_user_name_uq").on(t.userId, sql`lower(${t.name})`),
+    ownerPolicy(t),
+  ],
+);
+
+export const recipeItems = pgTable(
+  "recipe_items",
+  {
+    id: id(),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    recipeId: uuid()
+      .notNull()
+      .references(() => recipes.id, { onDelete: "cascade" }),
+    seq: integer().notNull(),
+    // Default NO ACTION: a food referenced by a recipe can't be deleted.
+    foodId: uuid()
+      .notNull()
+      .references(() => foods.id),
+    grams: doublePrecision().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("recipe_items_recipe_idx").on(t.recipeId), ownerPolicy(t)],
 );

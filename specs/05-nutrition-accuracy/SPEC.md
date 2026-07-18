@@ -1,6 +1,6 @@
 # Nutrition accuracy — epic spec
 
-**Status:** Phase 1 (photo + caption estimation protocol) shipped 2026-07-18. Phases 2–3 designed, not built.
+**Status:** Phases 1–2 built 2026-07-18 (plus `lookup_barcode` pulled forward from phase 3) — see [IMPLEMENTATION.md](IMPLEMENTATION.md) for deviations and the manual steps (Neon migration, `FDC_API_KEY` secret, layer-3 smoke, seed session). Phase 3 remaining: PWA scanner UI.
 **Owner:** Scott Schmalz
 
 ## 1. Motivating context

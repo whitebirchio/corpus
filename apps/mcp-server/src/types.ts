@@ -10,6 +10,12 @@ declare global {
     DATABASE_URL: string;
     GOOGLE_CLIENT_ID: string;
     GOOGLE_CLIENT_SECRET: string;
+    /**
+     * api.data.gov key for USDA FoodData Central lookups (search_foods /
+     * lookup_barcode). Optional: without it those tools fall back to the
+     * catalog + Open Food Facts only.
+     */
+    FDC_API_KEY?: string;
     /** Injected by OAuthProvider into the default (auth UI) handler only. */
     OAUTH_PROVIDER: OAuthHelpers;
   }

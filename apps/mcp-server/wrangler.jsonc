@@ -49,4 +49,6 @@
   //   GOOGLE_CLIENT_SECRET
   //   GARMIN_INGEST_SECRET  — shared secret for /garmin/* sync endpoints
   //                           (mirror as a GitHub Actions secret; docs/SETUP.md §7)
+  //   FDC_API_KEY           — optional; free key from api.data.gov for USDA
+  //                           FoodData Central food search (specs/05 §4.2)
 }

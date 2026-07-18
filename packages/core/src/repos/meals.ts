@@ -7,6 +7,52 @@ import type {
   UpdateMealInput,
 } from "../schemas/inputs.js";
 import { localTimeOf, NOMINAL_MEAL_TIMES, todayIn, zonedToUtc } from "../time.js";
+import { getFoodsByIds, macrosForGrams, resolveGrams } from "./foods.js";
+
+type MealItemInput = NonNullable<LogMealInput["items"]>[number];
+type ResolvedItem = MealItemInput & { gramsResolved?: number };
+
+/**
+ * Resolve catalog-bound items (specs/05-nutrition-accuracy/SPEC.md §4.2): for
+ * each item carrying a foodId, compute grams (explicit `grams`, else
+ * portionLabel × quantity against the food's portion map) and overwrite the
+ * macros server-side — the LLM's numbers are a fallback, not the answer.
+ * Unresolvable grams fall back to agent-supplied macros rather than failing
+ * the log (decision #6). An unknown foodId is an agent error and throws.
+ */
+async function resolveCatalogItems(
+  db: Db,
+  ctx: UserCtx,
+  items: MealItemInput[],
+): Promise<ResolvedItem[]> {
+  const ids = [...new Set(items.flatMap((i) => (i.foodId ? [i.foodId] : [])))];
+  if (ids.length === 0) return items;
+  const foodsById = await getFoodsByIds(db, ctx, ids);
+
+  return items.map((item): ResolvedItem => {
+    if (!item.foodId) return item;
+    const food = foodsById.get(item.foodId);
+    if (!food) {
+      throw new Error(`unknown catalog food id ${item.foodId} — get ids from search_foods`);
+    }
+    const grams = resolveGrams(food, {
+      grams: item.grams,
+      portionLabel: item.portionLabel,
+      quantity: item.quantity,
+    });
+    if (grams === undefined) return item;
+    const m = macrosForGrams(food, grams);
+    return {
+      ...item,
+      calories: m.calories,
+      proteinG: m.proteinG,
+      carbsG: m.carbsG,
+      fatG: m.fatG,
+      micros: m.micros ? { ...item.micros, ...m.micros } : item.micros,
+      gramsResolved: grams,
+    };
+  });
+}
 
 export type Meal = typeof meals.$inferSelect;
 export type MealItem = typeof mealItems.$inferSelect;
@@ -36,9 +82,10 @@ export async function logMeal(db: Db, ctx: UserCtx, input: LogMealInput): Promis
   const eatenAt =
     !input.date && !input.time ? new Date() : zonedToUtc(localDate, time, ctx.timezone);
 
-  const itemized = (input.items?.length ?? 0) > 0;
+  const resolvedItems = await resolveCatalogItems(db, ctx, input.items ?? []);
+  const itemized = resolvedItems.length > 0;
   const totals = itemized
-    ? sumItems(input.items ?? [])
+    ? sumItems(resolvedItems)
     : {
         calories: input.totals?.calories ?? 0,
         proteinG: input.totals?.proteinG ?? 0,
@@ -95,7 +142,7 @@ export async function logMeal(db: Db, ctx: UserCtx, input: LogMealInput): Promis
     const m = rows[0];
     if (!m) throw new Error("meals insert returned no row");
 
-    for (const [i, item] of (input.items ?? []).entries()) {
+    for (const [i, item] of resolvedItems.entries()) {
       await tx.insert(mealItems).values({
         userId: ctx.userId,
         mealId: m.id,
@@ -103,6 +150,8 @@ export async function logMeal(db: Db, ctx: UserCtx, input: LogMealInput): Promis
         name: item.name,
         quantity: item.quantity,
         unitNote: item.unitNote,
+        foodId: item.foodId,
+        gramsResolved: item.gramsResolved,
         calories: item.calories,
         proteinG: item.proteinG,
         carbsG: item.carbsG,
@@ -114,7 +163,7 @@ export async function logMeal(db: Db, ctx: UserCtx, input: LogMealInput): Promis
     return m;
   });
 
-  return { status: "logged", meal, itemCount: input.items?.length ?? 0 };
+  return { status: "logged", meal, itemCount: resolvedItems.length };
 }
 
 function sumItems(items: NonNullable<LogMealInput["items"]>): {
@@ -246,8 +295,11 @@ export async function updateMeal(
     patch.eatenAt = zonedToUtc(localDate, time, ctx.timezone);
   }
 
-  if (input.items !== undefined) {
-    const totals = sumItems(input.items);
+  const resolvedItems =
+    input.items !== undefined ? await resolveCatalogItems(db, ctx, input.items) : undefined;
+
+  if (resolvedItems !== undefined) {
+    const totals = sumItems(resolvedItems);
     patch.granularity = "itemized";
     patch.calories = totals.calories;
     patch.proteinG = totals.proteinG;
@@ -267,7 +319,7 @@ export async function updateMeal(
       await tx
         .delete(mealItems)
         .where(and(eq(mealItems.userId, ctx.userId), eq(mealItems.mealId, input.mealId)));
-      for (const [i, item] of (input.items ?? []).entries()) {
+      for (const [i, item] of (resolvedItems ?? []).entries()) {
         await tx.insert(mealItems).values({
           userId: ctx.userId,
           mealId: input.mealId,
@@ -275,6 +327,8 @@ export async function updateMeal(
           name: item.name,
           quantity: item.quantity,
           unitNote: item.unitNote,
+          foodId: item.foodId,
+          gramsResolved: item.gramsResolved,
           calories: item.calories,
           proteinG: item.proteinG,
           carbsG: item.carbsG,
