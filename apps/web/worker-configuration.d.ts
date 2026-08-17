@@ -3,7 +3,7 @@
 // Runtime types generated with workerd@1.20260630.1 2026-06-01 nodejs_compat
 interface __BaseEnv_Env {
 	ASSETS: Fetcher;
-	ALLOWED_EMAILS: "scott.schmalz@gmail.com";
+	ALLOWED_EMAILS: "scott.schmalz@gmail.com,sammeade016@gmail.com";
 	DEFAULT_TIMEZONE: "America/New_York";
 }
 declare namespace Cloudflare {

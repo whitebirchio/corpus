@@ -4,7 +4,7 @@
 interface __BaseEnv_Env {
 	OAUTH_KV: KVNamespace;
 	DOCS: R2Bucket;
-	ALLOWED_EMAILS: "scott.schmalz@gmail.com";
+	ALLOWED_EMAILS: "scott.schmalz@gmail.com,sammeade016@gmail.com";
 	DEFAULT_TIMEZONE: "America/New_York";
 	PUBLIC_BASE_URL: "";
 	DATABASE_URL: string;

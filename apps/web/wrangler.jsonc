@@ -20,7 +20,7 @@
   "vars": {
     // Comma-separated allowlist — the only emails that can sign in. Checked
     // at login AND on every API request (removal locks existing sessions out).
-    "ALLOWED_EMAILS": "scott.schmalz@gmail.com",
+    "ALLOWED_EMAILS": "scott.schmalz@gmail.com,sammeade016@gmail.com",
     "DEFAULT_TIMEZONE": "America/New_York",
   },
   // Secrets (npx wrangler secret put <NAME>), see specs/02-pwa-client/FOLLOWUPS.md:

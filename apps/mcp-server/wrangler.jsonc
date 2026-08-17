@@ -37,7 +37,7 @@
   ],
   "vars": {
     // Comma-separated allowlist — the only emails that can sign in.
-    "ALLOWED_EMAILS": "scott.schmalz@gmail.com",
+    "ALLOWED_EMAILS": "scott.schmalz@gmail.com,sammeade016@gmail.com",
     "DEFAULT_TIMEZONE": "America/New_York",
     // Public origin of this worker, e.g. https://corpus-mcp.<subdomain>.workers.dev
     // Only needed for original-document uploads; set after your first deploy.
