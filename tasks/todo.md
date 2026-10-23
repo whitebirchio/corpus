@@ -108,7 +108,7 @@ Plan: [tasks/plan.md](plan.md) · Spec: [specs/06-garmin-weigh-ins/SPEC.md](../s
 
 ---
 
-## Task 6: `morning_checkin` stops asking for weight; `log_daily_checkin` de-emphasizes it
+## Task 6: `morning_checkin` stops asking for weight; `log_daily_checkin` de-emphasizes it ✅
 
 **Description:** Edit the `morning_checkin` prompt per spec §3.3:
 - Step 1 notes the latest weight from `get_daily_summary`.
@@ -118,22 +118,22 @@ Plan: [tasks/plan.md](plan.md) · Spec: [specs/06-garmin-weigh-ins/SPEC.md](../s
 Also update the `log_daily_checkin` description: weight comes from Garmin, so pass it only if the user volunteers it or says the sync is down.
 
 **Acceptance criteria:**
-- [ ] The prompt text contains no request for a weigh-in
-- [ ] The tool description steers away from asking, and `weight` stays accepted (fallback invariant)
+- [x] The prompt text contains no request for a weigh-in. It explicitly says not to ask, and step 4's recap reports `latestWeight` (with its date when it isn't today's)
+- [x] The tool description and the `weight` field's schema description (`packages/core/src/schemas/inputs.ts`) steer away from asking. `weight` stays accepted (fallback invariant)
 
 **Verification:**
-- [ ] Build: `npm run typecheck`
-- [ ] Manual: in Claude (or the MCP inspector against `npm run dev`), run `morning_checkin`. It reports the synced weight with its date and does not ask for weight
+- [x] Build: `npm run typecheck`
+- [ ] Manual (Scott, **after deploy**): in Claude, run `morning_checkin`. It reports the synced weight with its date and does not ask for weight
 
 **Dependencies:** Task 5. Ship together with or after Phase 1 is deployed (see plan risks)
-**Files likely touched:** `apps/mcp-server/src/prompts.ts`, `apps/mcp-server/src/tools.ts`
+**Files likely touched:** `apps/mcp-server/src/prompts.ts`, `apps/mcp-server/src/tools.ts`, `packages/core/src/schemas/inputs.ts`
 **Estimated scope:** XS
 
 ---
 
 ## Checkpoint B: one-entry morning
-- [ ] `npm run typecheck && npm test` green
-- [ ] Task 6's manual check confirmed
+- [x] `npm run typecheck && npm test` green (175 core + 7)
+- [ ] Task 6's manual check confirmed (after deploy)
 
 ---
 

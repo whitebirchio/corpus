@@ -140,6 +140,8 @@ export function registerTools(
       title: "Log daily check-in",
       description:
         "Record the morning check-in: sleep, HRV, resting HR, steps, subjective energy, and an optional weigh-in. " +
+        "Weigh-ins sync automatically from Garmin Connect — do NOT ask the user for their weight; pass `weight` only if " +
+        "they volunteer one or say the Garmin sync is down. " +
         "Upserts by date — re-logging a day updates the provided fields and preserves the rest, so it is always safe to call. " +
         "Pass quantities unit-tagged (e.g. weight { value: 178.2, unit: 'lb' }); the server converts.",
       inputSchema: logDailyCheckinShape,
