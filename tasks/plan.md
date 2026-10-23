@@ -52,7 +52,7 @@ Tasks 2–4 and 5–6 are independent chains. Task 6 should still not ship befor
 - [ ] In Claude, against the local worker or after deploy: `morning_checkin` reports the synced weight and never asks for one
 
 ### Phase 3: History and records
-- [ ] Task 7: `--weight-since` backfill, `weight_since` workflow input, SETUP docs
+- [x] Task 7: `--weight-since` backfill, `weight_since` workflow input, SETUP docs — done 2026-10-23
 - [ ] Task 8: Spec bookkeeping, deploy, and a one-time backfill run (part manual)
 
 ### Checkpoint C: complete

@@ -137,8 +137,9 @@ lower my cholesterol, given my labs?"* — Claude should reason over your real L
 ## 7. Garmin sync (optional — automated nightly biometrics)
 
 A GitHub Actions job pulls sleep, HRV, resting HR, steps, body battery,
-stress, and activity summaries from Garmin Connect every night and posts them
-to the worker (../specs/01-initial-platform/SPEC.md §8.4). One-time setup:
+stress, activity summaries, and weigh-ins from Garmin Connect every night and
+posts them to the worker (../specs/01-initial-platform/SPEC.md §8.4,
+../specs/06-garmin-weigh-ins/SPEC.md). One-time setup:
 
 1. **Create the shared secret** (any long random string):
 
@@ -170,8 +171,27 @@ to the worker (../specs/01-initial-platform/SPEC.md §8.4). One-time setup:
    auto-refresh from then on.
 
 4. **Verify**: GitHub → Actions → `garmin-sync` → Run workflow. The log
-   prints an import summary (`days.updated`, `activities.created/enriched`).
-   Then ask Claude: *"what was my HRV last night?"*
+   prints an import summary (`days.updated`, `activities.created/enriched`,
+   `weighIns.upserted`). Then ask Claude: *"what was my HRV last night?"*
+
+5. **Backfill weigh-in history (once)**: scheduled runs only cover the last
+   week, so import your older Garmin weigh-ins once. GitHub → Actions →
+   `garmin-sync` → Run workflow → set `weight_since` to a date before your
+   first Garmin weigh-in (an early date like `2010-01-01` is safe; empty
+   ranges are cheap). Or locally:
+
+   ```sh
+   cd apps/garmin-sync
+   CORPUS_BASE_URL=https://corpus-mcp.whitebirch.workers.dev \
+   CORPUS_INGEST_SECRET=<the secret> \
+   CORPUS_USER_EMAIL=scott.schmalz@gmail.com \
+   .venv/bin/python sync.py pull --weight-since 2010-01-01
+   ```
+
+   It prints one line per 90-day chunk. It's idempotent, so re-running is
+   safe, and a failed run prints the exact `--weight-since` to resume from.
+   From then on, enter weigh-ins in Garmin Connect only — the morning
+   check-in no longer asks for them.
 
 **When it breaks** (Garmin invalidates the session — it happens): GitHub
 emails you the workflow failure. Re-run step 3; the next pull backfills the

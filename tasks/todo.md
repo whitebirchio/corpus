@@ -137,18 +137,20 @@ Also update the `log_daily_checkin` description: weight comes from Garmin, so pa
 
 ---
 
-## Task 7: `--weight-since` backfill, `weight_since` workflow input, SETUP docs
+## Task 7: `--weight-since` backfill, `weight_since` workflow input, SETUP docs ✅
 
 **Description:** Add `pull --weight-since YYYY-MM-DD`. It loops 90-day chunks up to today and POSTs each as `{ userEmail, days: [], activities: [], weighIns }`, printing a per-chunk summary. It fails loudly (non-zero exit) if a chunk's POST fails, and logs the chunk so a re-run is easy. Add an optional `weight_since` input to `garmin-sync.yml` `workflow_dispatch`. Document the one-time backfill in `docs/SETUP.md` §7.
 
 **Acceptance criteria:**
-- [ ] The backfill covers `[weight_since, today]` in contiguous chunks with no gaps or overlaps (each chunk's `end + 1 day` = the next chunk's `start`)
-- [ ] Re-running the backfill is a no-op for the row count
-- [ ] Scheduled cron behaviour is unchanged when `weight_since` is empty
+- [x] The backfill covers `[weight_since, today]` in contiguous chunks with no gaps or overlaps (each chunk's `end + 1 day` = the next chunk's `start`)
+- [x] Re-running the backfill is a no-op for the row count. Server-side idempotency is covered by Task 2's tests. The live confirmation is in Task 8
+- [x] Scheduled cron behaviour is unchanged when `weight_since` is empty. The workflow's run step branches on `$WEIGHT_SINCE`, and inputs pass through env (no shell injection)
+
+> Build note: unlike the scheduled pull, a fetch failure during backfill is fatal (exit non-zero) and prints `Resume with: pull --weight-since <failed chunk start>`. Tokens are saved once, at the end. `sync.py` gained small `login_from_store` / `post_ingest` / `today_local` helpers, shared by `pull` and the backfill.
 
 **Verification:**
-- [ ] `python -m py_compile apps/garmin-sync/sync.py`
-- [ ] Manual: `pull --weight-since <date ~200 days ago> --dry-run` prints 3 chunks with correct bounds
+- [x] `python -m py_compile apps/garmin-sync/sync.py`. Workflow YAML parses with `days` and `weight_since` inputs
+- [x] Stub harness: 22/22 checks (11 for Task 4 plus 11 for the backfill). The backfill checks cover a 200-day run as 3 contiguous ≤90-day chunks ending today, weigh-in-only payloads, one token save, a dry run making no POST or PUT, a mid-run failure printing the resume date with no token save, and rejection of future or malformed dates
 
 **Dependencies:** Task 4
 **Files likely touched:** `apps/garmin-sync/sync.py`, `.github/workflows/garmin-sync.yml`, `docs/SETUP.md`

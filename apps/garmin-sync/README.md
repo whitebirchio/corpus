@@ -1,7 +1,7 @@
 # garmin-sync
 
 Nightly pull of Garmin Connect wellness data (sleep, HRV, resting HR, steps,
-body battery, stress) and activity summaries into Corpus, via the worker's
+body battery, stress), activity summaries, and weigh-ins into Corpus, via the worker's
 `/garmin/ingest` endpoint. Runs as a GitHub Actions scheduled workflow
 ([.github/workflows/garmin-sync.yml](../../.github/workflows/garmin-sync.yml));
 this uses Garmin's unofficial API through
@@ -27,9 +27,12 @@ CORPUS_USER_EMAIL=scott.schmalz@gmail.com \
 # manual pull (what the nightly job runs)
 ... .venv/bin/python sync.py pull --days 7
 
-# inspect what would be sent (plus raw weigh-in endpoint responses) without
-# posting anything or touching the stored tokens
+# inspect what would be sent without posting anything or touching the
+# stored tokens
 ... .venv/bin/python sync.py pull --days 7 --dry-run
+
+# one-time weigh-in history backfill (90-day chunks; idempotent, resumable)
+... .venv/bin/python sync.py pull --weight-since 2010-01-01
 ```
 
 If a nightly run fails (GitHub emails on workflow failure), it's usually a
