@@ -9,7 +9,7 @@ export type DailyMetrics = typeof dailyMetrics.$inferSelect;
 export type BodyMeasurement = typeof bodyMeasurements.$inferSelect;
 
 /** Nominal local time assigned to morning weigh-ins logged without a time. */
-const WEIGH_IN_TIME = "07:00";
+export const WEIGH_IN_TIME = "07:00";
 
 /**
  * Upsert semantics per specs/01-initial-platform/SPEC.md §5.9: the natural key is (user_id, local_date)

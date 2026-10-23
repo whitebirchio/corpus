@@ -34,7 +34,7 @@ Tasks 2–4 and 5–6 are independent chains. Task 6 should still not ship befor
 
 ### Phase 1: Ingest path (fail fast on the riskiest unknown)
 - [x] Task 1: Confirm the live weigh-in payload shape (spike, needs Scott's env) — done 2026-10-23, `get_weigh_ins` chosen
-- [ ] Task 2: Core: weigh-ins in the ingest payload upsert into `body_measurements`
+- [x] Task 2: Core: weigh-ins in the ingest payload upsert into `body_measurements` — done 2026-10-23
 - [ ] Task 3: Core: window-scoped delete reconciliation
 - [ ] Task 4: Sync job forwards the trailing-window weigh-ins
 

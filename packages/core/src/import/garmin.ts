@@ -17,19 +17,24 @@
  *     timer/HR, the per-set detail comes from conversational logging, and a
  *     later re-run enriches once the session exists (the job pulls a trailing
  *     window, so this self-heals).
+ * Weigh-ins (specs/06-garmin-weigh-ins) upsert into body_measurements as
+ * `garmin_export` rows keyed on Garmin's real timestamp — tier-2 natural-key
+ * dedup on (user_id, measured_at, source), so edits in Garmin update in place.
  */
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import type { Db, UserCtx } from "../db/client.js";
 import {
   blockMovements,
+  bodyMeasurements,
   workoutBlocks,
   workoutSessions,
 } from "../db/schema.js";
 import type { LogDailyCheckinInput } from "../schemas/inputs.js";
 import { zonedToUtc } from "../time.js";
+import { toKg } from "../units.js";
 import { resolveMovement } from "../repos/movements.js";
-import { upsertDailyCheckin } from "../repos/checkins.js";
+import { upsertDailyCheckin, WEIGH_IN_TIME } from "../repos/checkins.js";
 
 // --- payload ----------------------------------------------------------------
 
@@ -50,6 +55,11 @@ export const garminIngestPayload = z.object({
     )
     .default([]),
   activities: z.array(rawObject).default([]),
+  // get_weigh_ins(start, end) allWeightMetrics, flattened and forwarded raw,
+  // with the window that was fetched. Absent = not fetched (never "empty").
+  weighIns: z
+    .object({ start: z.iso.date(), end: z.iso.date(), entries: z.array(rawObject) })
+    .optional(),
 });
 export type GarminIngestPayload = z.infer<typeof garminIngestPayload>;
 
@@ -68,6 +78,13 @@ export interface GarminImportSummary {
     skipped: GarminActivityOutcome[];
     /** Strength sessions with no conversational log yet — retried next run. */
     deferredStrength: GarminActivityOutcome[];
+  };
+  weighIns: {
+    /** measured_at (ISO) of each weigh-in written. */
+    upserted: string[];
+    deleted: number;
+    /** Entries with no usable weight or time. */
+    skipped: number;
   };
 }
 
@@ -156,6 +173,74 @@ export function garminDayToCheckin(day: {
   put("vo2max", generic?.vo2MaxValue, (n) => n);
 
   return any ? input : null;
+}
+
+// --- weigh-ins ---------------------------------------------------------------
+
+export interface GarminWeighIn {
+  measuredAt: Date;
+  weightKg: number;
+  bodyFatPct?: number;
+  extras: Record<string, unknown>;
+}
+
+/**
+ * Map one raw Garmin weigh-in (grams, epoch-ms timestamps). `timestampGMT` is
+ * the true instant; `date` is local wall-clock encoded as UTC and is ignored.
+ * Scale body comp beyond body-fat % stays in extras — BIA "bone mass" is not
+ * DEXA bone mineral content and must not share its column.
+ */
+export function garminWeighInToMeasurement(
+  raw: Record<string, unknown>,
+  timezone: string,
+): GarminWeighIn | null {
+  const grams = num(raw.weight);
+  if (grams === undefined || grams <= 0) return null;
+
+  const ts = num(raw.timestampGMT);
+  const calendarDate = str(raw.calendarDate);
+  let measuredAt: Date;
+  if (ts !== undefined) measuredAt = new Date(ts);
+  else if (calendarDate) measuredAt = zonedToUtc(calendarDate, WEIGH_IN_TIME, timezone);
+  else return null;
+
+  const positive = (v: unknown) => {
+    const n = num(v);
+    return n !== undefined && n > 0 ? n : undefined;
+  };
+  const kg = (v: unknown) => {
+    const n = positive(v);
+    return n !== undefined ? toKg({ value: n, unit: "g" }) : undefined;
+  };
+  const fields: Record<string, unknown> = {
+    garminSamplePk: num(raw.samplePk),
+    sourceType: str(raw.sourceType),
+    bmi: positive(raw.bmi),
+    bodyWaterPct: positive(raw.bodyWater),
+    muscleMassKg: kg(raw.muscleMass),
+    boneMassKg: kg(raw.boneMass),
+  };
+  const extras: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(fields)) if (v !== undefined) extras[k] = v;
+
+  const bodyFatPct = positive(raw.bodyFat);
+  return {
+    measuredAt,
+    weightKg: toKg({ value: grams, unit: "g" }),
+    ...(bodyFatPct !== undefined ? { bodyFatPct } : {}),
+    extras,
+  };
+}
+
+async function upsertWeighIn(db: Db, ctx: UserCtx, w: GarminWeighIn): Promise<void> {
+  const values = { weightKg: w.weightKg, bodyFatPct: w.bodyFatPct ?? null, extras: w.extras };
+  await db
+    .insert(bodyMeasurements)
+    .values({ userId: ctx.userId, measuredAt: w.measuredAt, source: "garmin_export", ...values })
+    .onConflictDoUpdate({
+      target: [bodyMeasurements.userId, bodyMeasurements.measuredAt, bodyMeasurements.source],
+      set: { ...values, updatedAt: new Date() },
+    });
 }
 
 // --- activities -------------------------------------------------------------
@@ -405,7 +490,18 @@ export async function importGarminData(
   const summary: GarminImportSummary = {
     days: { updated: [], skipped: [] },
     activities: { created: [], enriched: [], skipped: [], deferredStrength: [] },
+    weighIns: { upserted: [], deleted: 0, skipped: 0 },
   };
+
+  for (const raw of payload.weighIns?.entries ?? []) {
+    const w = garminWeighInToMeasurement(raw, ctx.timezone);
+    if (!w) {
+      summary.weighIns.skipped++;
+      continue;
+    }
+    await upsertWeighIn(db, ctx, w);
+    summary.weighIns.upserted.push(w.measuredAt.toISOString());
+  }
 
   for (const day of payload.days) {
     const checkin = garminDayToCheckin(day);

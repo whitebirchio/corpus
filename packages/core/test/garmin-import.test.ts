@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import type { Db, UserCtx } from "../src/db/client.js";
-import { workoutBlocks, workoutSessions } from "../src/db/schema.js";
-import { garminDayToCheckin, importGarminData } from "../src/import/garmin.js";
+import { bodyMeasurements, workoutBlocks, workoutSessions } from "../src/db/schema.js";
+import {
+  garminDayToCheckin,
+  garminWeighInToMeasurement,
+  importGarminData,
+} from "../src/import/garmin.js";
 import { getDailyMetrics } from "../src/repos/checkins.js";
 import { upsertDailyCheckin } from "../src/repos/checkins.js";
 import { logWorkout } from "../src/repos/workouts.js";
@@ -321,5 +325,161 @@ describe("importGarminData — activities", () => {
       .from(workoutBlocks)
       .where(eq(workoutBlocks.sessionId, sessions[0]!.id));
     expect(blocks[0]!.blockType).toBe("other");
+  });
+});
+
+// Shaped exactly like a live get_weigh_ins allWeightMetrics entry (manual
+// entry, 2026-10-23 07:23 America/New_York) — see specs/06-garmin-weigh-ins §10.
+// Note `date` is local wall-clock encoded as UTC and must be ignored.
+const manualWeighIn = {
+  samplePk: 1792754614878,
+  date: 1792740209005,
+  calendarDate: "2026-10-23",
+  weight: 70397.0,
+  bmi: null,
+  bodyFat: null,
+  bodyWater: null,
+  boneMass: null,
+  muscleMass: null,
+  physiqueRating: null,
+  visceralFat: null,
+  metabolicAge: null,
+  sourceType: "MANUAL",
+  timestampGMT: 1792754609005,
+  weightDelta: null,
+};
+
+// Index-scale reading (no live sample yet; field names per the same shape).
+const scaleWeighIn = {
+  ...manualWeighIn,
+  samplePk: 1792668385118,
+  calendarDate: "2026-10-22",
+  timestampGMT: 1792668380004,
+  weight: 70760.0,
+  bmi: 22.4,
+  bodyFat: 18.2,
+  bodyWater: 58.1,
+  boneMass: 3100.0,
+  muscleMass: 32000.0,
+  sourceType: "INDEX_SCALE",
+};
+
+const weighInWindow = (entries: Record<string, unknown>[]) => ({
+  start: "2026-10-17",
+  end: "2026-10-23",
+  entries,
+});
+
+async function garminWeighIns() {
+  return db
+    .select()
+    .from(bodyMeasurements)
+    .where(eq(bodyMeasurements.source, "garmin_export"))
+    .orderBy(bodyMeasurements.measuredAt);
+}
+
+describe("garminWeighInToMeasurement", () => {
+  it("maps grams to kg at the real GMT timestamp, ignoring the local-as-UTC `date`", () => {
+    const m = garminWeighInToMeasurement(manualWeighIn, ctx.timezone);
+    expect(m).not.toBeNull();
+    expect(m!.measuredAt.toISOString()).toBe("2026-10-23T11:23:29.005Z"); // 07:23 EDT
+    expect(m!.weightKg).toBeCloseTo(70.397, 6);
+    expect(m!.bodyFatPct).toBeUndefined();
+    expect(m!.extras).toEqual({ garminSamplePk: 1792754614878, sourceType: "MANUAL" });
+  });
+
+  it("falls back to calendarDate at the nominal 07:00 local weigh-in time", () => {
+    const m = garminWeighInToMeasurement(
+      { ...manualWeighIn, timestampGMT: null },
+      ctx.timezone,
+    );
+    expect(m!.measuredAt.toISOString()).toBe("2026-10-23T11:00:00.000Z");
+  });
+
+  it("captures index-scale body fat and keeps scale body comp in extras", () => {
+    const m = garminWeighInToMeasurement(scaleWeighIn, ctx.timezone);
+    expect(m!.bodyFatPct).toBe(18.2);
+    expect(m!.extras).toEqual({
+      garminSamplePk: 1792668385118,
+      sourceType: "INDEX_SCALE",
+      bmi: 22.4,
+      bodyWaterPct: 58.1,
+      muscleMassKg: 32,
+      boneMassKg: 3.1,
+    });
+  });
+
+  it("returns null for unusable entries", () => {
+    for (const weight of [0, -1, null, undefined]) {
+      expect(garminWeighInToMeasurement({ ...manualWeighIn, weight }, ctx.timezone)).toBeNull();
+    }
+    expect(
+      garminWeighInToMeasurement(
+        { ...manualWeighIn, timestampGMT: null, calendarDate: null },
+        ctx.timezone,
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("importGarminData — weigh-ins", () => {
+  it("upserts weigh-ins as garmin_export body measurements", async () => {
+    const summary = await importGarminData(db, ctx, {
+      days: [],
+      activities: [],
+      weighIns: weighInWindow([manualWeighIn, scaleWeighIn, { ...manualWeighIn, weight: 0 }]),
+    });
+    expect(summary.weighIns.upserted).toEqual([
+      "2026-10-23T11:23:29.005Z",
+      "2026-10-22T11:26:20.004Z",
+    ]);
+    expect(summary.weighIns.skipped).toBe(1);
+
+    const rows = await garminWeighIns();
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.userId).toBe(ctx.userId);
+    expect(rows[0]!.weightKg).toBeCloseTo(70.76, 6);
+    expect(rows[0]!.bodyFatPct).toBe(18.2);
+    // Scale bone mass is a BIA estimate — never DEXA bone mineral content.
+    expect(rows[0]!.boneMineralContentKg).toBeNull();
+    expect(rows[1]!.weightKg).toBeCloseTo(70.397, 6);
+  });
+
+  it("is idempotent on re-import and applies Garmin-side edits in place", async () => {
+    const payload = { days: [], activities: [], weighIns: weighInWindow([manualWeighIn]) };
+    await importGarminData(db, ctx, payload);
+    await importGarminData(db, ctx, payload);
+    expect(await garminWeighIns()).toHaveLength(1);
+
+    await importGarminData(db, ctx, {
+      ...payload,
+      weighIns: weighInWindow([{ ...manualWeighIn, weight: 70100.0 }]),
+    });
+    const rows = await garminWeighIns();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.weightKg).toBeCloseTo(70.1, 6);
+  });
+
+  it("coexists with a same-day check-in weigh-in", async () => {
+    await upsertDailyCheckin(db, ctx, {
+      date: "2026-10-23",
+      weight: { value: 155.2, unit: "lb" },
+    });
+    await importGarminData(db, ctx, {
+      days: [],
+      activities: [],
+      weighIns: weighInWindow([manualWeighIn]),
+    });
+    const all = await db
+      .select()
+      .from(bodyMeasurements)
+      .where(eq(bodyMeasurements.userId, ctx.userId));
+    expect(all.map((r) => r.source).sort()).toEqual(["checkin", "garmin_export"]);
+  });
+
+  it("reports an empty weigh-in summary when the payload has no weighIns", async () => {
+    const summary = await importGarminData(db, ctx, { days: [], activities: [] });
+    expect(summary.weighIns).toEqual({ upserted: [], deleted: 0, skipped: 0 });
+    expect(await garminWeighIns()).toHaveLength(0);
   });
 });

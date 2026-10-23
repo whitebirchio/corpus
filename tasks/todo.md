@@ -24,18 +24,18 @@ Plan: [tasks/plan.md](plan.md) · Spec: [specs/06-garmin-weigh-ins/SPEC.md](../s
 
 ---
 
-## Task 2: Core: weigh-ins in the ingest payload upsert into `body_measurements`
+## Task 2: Core: weigh-ins in the ingest payload upsert into `body_measurements` ✅
 
 **Description:** Extend `garminIngestPayload` with an optional `weighIns: { start, end, entries }`. Add a pure `garminWeighInToMeasurement(raw, timezone)` mapper and upsert the mapped rows on `(user_id, measured_at, source = 'garmin_export')`. Export `WEIGH_IN_TIME` from `repos/checkins.ts` for the `calendarDate` fallback. Add `weighIns: { upserted, deleted: 0, skipped }` to `GarminImportSummary`.
 
 **Acceptance criteria:**
-- [ ] A Garmin entry with weight in grams is stored as canonical kg at its real `timestampGMT`. Body fat and the scale extras land per spec §3.2, and scale bone mass never goes in `bone_mineral_content_kg`
-- [ ] Entries with missing, zero or negative weight, or with no usable time, are skipped and counted
-- [ ] Re-importing the same payload leaves the row count unchanged, and an edited weight updates in place
+- [x] A Garmin entry with weight in grams is stored as canonical kg at its real `timestampGMT`. Body fat and the scale extras land per spec §3.2, and scale bone mass never goes in `bone_mineral_content_kg`
+- [x] Entries with missing, zero or negative weight, or with no usable time, are skipped and counted
+- [x] Re-importing the same payload leaves the row count unchanged, and an edited weight updates in place
 
 **Verification:**
-- [ ] Tests pass: `npx vitest run garmin` (in `packages/core`), with new cases using Task 1's fixture shape
-- [ ] Build: `npm run typecheck`
+- [x] Tests pass: `npx vitest run garmin` (in `packages/core`), with new cases using Task 1's fixture shape
+- [x] Build: `npm run typecheck`
 
 **Dependencies:** Task 1 (fixture shape; can start on the library's documented shape if Task 1 is blocked)
 **Files likely touched:** `packages/core/src/import/garmin.ts`, `packages/core/src/repos/checkins.ts`, `packages/core/test/garmin-import.test.ts`
