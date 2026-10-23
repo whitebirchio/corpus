@@ -53,7 +53,7 @@ Tasks 2–4 and 5–6 are independent chains. Task 6 should still not ship befor
 
 ### Phase 3: History and records
 - [x] Task 7: `--weight-since` backfill, `weight_since` workflow input, SETUP docs — done 2026-10-23
-- [ ] Task 8: Spec bookkeeping, deploy, and a one-time backfill run (part manual)
+- [x] Task 8: Spec bookkeeping, deploy, and a one-time backfill run (part manual) — bookkeeping done 2026-10-23; merge + backfill are Scott's
 
 ### Checkpoint C: complete
 - [ ] All spec §1 acceptance criteria met (see todo.md)

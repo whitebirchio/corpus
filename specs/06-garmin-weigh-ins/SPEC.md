@@ -1,6 +1,6 @@
 # Garmin weigh-ins — epic spec
 
-**Status:** Spec drafted 2026-10-23. Not yet implemented.
+**Status:** Spec drafted and built 2026-10-23. Awaiting merge/deploy and the one-time backfill — see [IMPLEMENTATION.md](IMPLEMENTATION.md).
 **Owner:** Scott Schmalz
 
 ## 1. Motivating context

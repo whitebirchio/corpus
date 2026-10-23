@@ -167,11 +167,11 @@ Also update the `log_daily_checkin` description: weight comes from Garmin, so pa
 - After merge (CI deploys the worker), Scott runs the backfill once.
 
 **Acceptance criteria:**
-- [ ] Spec history updated per the append-only convention
-- [ ] Backfill run: the `query_data` count of `body_measurements WHERE source = 'garmin_export'` roughly matches Garmin's history, and an immediate re-run leaves it unchanged
+- [x] Spec history updated per the append-only convention: SPEC 01 §8.4.2 addendum, `IMPLEMENTATION.md`, README entry marked built, SPEC 06 status
+- [ ] Backfill run: the `query_data` count of `body_measurements WHERE source = 'garmin_export'` roughly matches Garmin's history, and an immediate re-run leaves it unchanged — **Scott, after merge**
 
 **Verification:**
-- [ ] `npm run typecheck && npm test`
+- [x] `npm run typecheck && npm test` (175 core + 7, typecheck clean)
 - [ ] Manual (Scott): run the `garmin-sync` workflow with `weight_since` set (or run it locally), then query the count twice
 
 **Dependencies:** Tasks 1–7
@@ -181,8 +181,11 @@ Also update the `log_daily_checkin` description: weight comes from Garmin, so pa
 ---
 
 ## Checkpoint C: complete
-- [ ] Weigh-in entered in Garmin appears in Corpus after the next sync (≤4h), in kg at its real time
-- [ ] An edit in Garmin updates the row, and a delete in Garmin removes it on the next covering run
-- [ ] Re-runs (scheduled or backfill) create no duplicates
-- [ ] `morning_checkin` never asks for weight, and `log_daily_checkin.weight` still works as a fallback
-- [ ] Ready for review and merge
+
+The code side of each item is covered by tests or the harness. The live confirmation of each happens after merge (IMPLEMENTATION.md, "Remaining manual steps").
+
+- [ ] Weigh-in entered in Garmin appears in Corpus after the next sync (≤4h), in kg at its real time (tested ✓; live pending)
+- [ ] An edit in Garmin updates the row, and a delete in Garmin removes it on the next covering run (tested ✓; live pending)
+- [ ] Re-runs (scheduled or backfill) create no duplicates (tested ✓; live pending)
+- [ ] `morning_checkin` never asks for weight, and `log_daily_checkin.weight` still works as a fallback (prompt text ✓; live pending)
+- [x] Ready for review and merge
