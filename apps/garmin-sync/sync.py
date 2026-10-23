@@ -12,7 +12,9 @@ Modes:
               Handles an MFA prompt if the account requires one.
   pull        Unattended sync (nightly GitHub Actions). Loads the token blob
               from the worker store, fetches the trailing window, posts it,
-              and saves the (possibly refreshed) tokens back.
+              and saves the (possibly refreshed) tokens back. With --dry-run,
+              prints the payload (plus a raw weigh-in probe) instead of posting
+              it and leaves the stored tokens untouched.
 
 Environment (both modes):
   CORPUS_BASE_URL        e.g. https://corpus-mcp.whitebirch.workers.dev
@@ -124,7 +126,13 @@ def bootstrap() -> None:
     print(f"Garmin tokens stored for {USER_EMAIL}. Nightly pulls can run unattended now.")
 
 
-def pull(days: int) -> None:
+# Garmin exposes weigh-ins through two endpoints whose shapes differ; until the
+# ingest path picks one (specs/06-garmin-weigh-ins/SPEC.md §10), --dry-run dumps
+# both raw so the field names/units can be confirmed against a real account.
+WEIGH_IN_PROBES = ("get_body_composition", "get_weigh_ins")
+
+
+def pull(days: int, dry_run: bool = False) -> None:
     blob = get_stored_tokens()
     if not blob:
         sys.exit("No stored Garmin tokens — run `python sync.py bootstrap` locally first.")
@@ -173,18 +181,24 @@ def pull(days: int) -> None:
         raw_activities = []
     activities = [{k: a.get(k) for k in ACTIVITY_FIELDS if k in a} for a in raw_activities]
 
-    r = requests.post(
-        f"{BASE_URL}/garmin/ingest",
-        headers=AUTH_HEADERS,
-        json={"userEmail": USER_EMAIL, "days": day_payloads, "activities": activities},
-        timeout=120,
-    )
-    if not r.ok:
-        sys.exit(f"Ingest failed ({r.status_code}): {r.text}")
-    print(json.dumps(r.json(), indent=2))
+    payload = {"userEmail": USER_EMAIL, "days": day_payloads, "activities": activities}
 
-    # Persist whatever got refreshed so the next run starts warm.
-    put_stored_tokens(garmin.client.dumps())
+    if dry_run:
+        probe: dict = {}
+        for name in WEIGH_IN_PROBES:
+            try:
+                probe[name] = getattr(garmin, name)(start, today.isoformat())
+            except Exception as e:  # noqa: BLE001
+                errors.append(f"{name} {start}..{today}: {e}")
+        print(json.dumps({"payload": payload, "weighInProbe": probe}, indent=2, default=str))
+    else:
+        r = requests.post(f"{BASE_URL}/garmin/ingest", headers=AUTH_HEADERS, json=payload, timeout=120)
+        if not r.ok:
+            sys.exit(f"Ingest failed ({r.status_code}): {r.text}")
+        print(json.dumps(r.json(), indent=2))
+
+        # Persist whatever got refreshed so the next run starts warm.
+        put_stored_tokens(garmin.client.dumps())
 
     if errors:
         print("\nPer-day fetch warnings (data will self-heal on the next run):", file=sys.stderr)
@@ -198,12 +212,17 @@ def main() -> None:
     sub.add_parser("bootstrap", help="Interactive first-time Garmin login (run locally)")
     p_pull = sub.add_parser("pull", help="Unattended sync of the trailing window")
     p_pull.add_argument("--days", type=int, default=7, help="Trailing days to pull (default 7)")
+    p_pull.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the payload and a raw weigh-in probe instead of posting; tokens are not saved",
+    )
     args = parser.parse_args()
 
     if args.mode == "bootstrap":
         bootstrap()
     else:
-        pull(max(1, args.days))
+        pull(max(1, args.days), dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

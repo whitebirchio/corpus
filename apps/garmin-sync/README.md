@@ -26,6 +26,10 @@ CORPUS_USER_EMAIL=scott.schmalz@gmail.com \
 
 # manual pull (what the nightly job runs)
 ... .venv/bin/python sync.py pull --days 7
+
+# inspect what would be sent (plus raw weigh-in endpoint responses) without
+# posting anything or touching the stored tokens
+... .venv/bin/python sync.py pull --days 7 --dry-run
 ```
 
 If a nightly run fails (GitHub emails on workflow failure), it's usually a

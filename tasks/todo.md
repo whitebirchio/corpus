@@ -9,12 +9,14 @@ Plan: [tasks/plan.md](plan.md) · Spec: [specs/06-garmin-weigh-ins/SPEC.md](../s
 **Description:** Add a `--dry-run` flag to `sync.py pull` that fetches everything as usual, including a new `get_body_composition(start, today)` call, and prints the JSON payload instead of POSTing it or saving tokens. Run it once against Scott's account and save a scrubbed sample of `dateWeightList` (one manual entry, and one scale entry if any exist) as the canonical fixture shape for Task 2.
 
 **Acceptance criteria:**
-- [ ] `pull --dry-run` prints the payload and makes no `POST /garmin/ingest` or `PUT /garmin/tokens` calls
-- [ ] The actual field names and units for timestamp, weight, sample id, body fat and source type are recorded in the spec §10 (risk resolved or updated)
+- [x] `pull --dry-run` prints the payload and makes no `POST /garmin/ingest` or `PUT /garmin/tokens` calls (verified with a stubbed Garmin/requests harness: only `GET /garmin/tokens` issued)
+- [ ] The actual field names and units for timestamp, weight, sample id, body fat and source type are recorded in the spec §10 (risk resolved or updated) — **waiting on Scott's live run**
+
+> Build note: the library has two candidate endpoints, `get_body_composition` (`/weight/dateRange`) and `get_weigh_ins` (`/weight/range?includeAll=true`). The dry run dumps both under `weighInProbe`, and the live output decides which one Task 4 forwards (it must list every individual reading with a stable timestamp/id).
 
 **Verification:**
-- [ ] `python -m py_compile apps/garmin-sync/sync.py`
-- [ ] Manual: Scott runs `python apps/garmin-sync/sync.py pull --days 7 --dry-run` locally (needs `CORPUS_*` env) and pastes the weigh-in portion
+- [x] `python -m py_compile apps/garmin-sync/sync.py`
+- [ ] Manual: Scott runs `python apps/garmin-sync/sync.py pull --days 7 --dry-run` locally (needs `CORPUS_*` env) and pastes the `weighInProbe` portion
 
 **Dependencies:** None
 **Files likely touched:** `apps/garmin-sync/sync.py`, `specs/06-garmin-weigh-ins/SPEC.md`
