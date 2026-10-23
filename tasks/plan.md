@@ -36,7 +36,7 @@ Tasks 2–4 and 5–6 are independent chains. Task 6 should still not ship befor
 - [x] Task 1: Confirm the live weigh-in payload shape (spike, needs Scott's env) — done 2026-10-23, `get_weigh_ins` chosen
 - [x] Task 2: Core: weigh-ins in the ingest payload upsert into `body_measurements` — done 2026-10-23
 - [x] Task 3: Core: window-scoped delete reconciliation — done 2026-10-23 (window keyed on Garmin calendarDate)
-- [ ] Task 4: Sync job forwards the trailing-window weigh-ins
+- [x] Task 4: Sync job forwards the trailing-window weigh-ins — done 2026-10-23 (live post-deploy run pending)
 
 ### Checkpoint A: a weigh-in entered in Garmin reaches Corpus
 - [ ] `npm run typecheck && npm test` green

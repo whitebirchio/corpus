@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Corpus Garmin sync — pulls daily wellness + activities from Garmin Connect
-and posts the raw JSON to the Corpus worker's /garmin/ingest endpoint. All
+"""Corpus Garmin sync — pulls daily wellness, activities and weigh-ins from
+Garmin Connect and posts the raw JSON to the Corpus worker's /garmin/ingest endpoint. All
 mapping and reconciliation happen server-side in @corpus/core; this script's
 only job is speaking Garmin's (unofficial, reverse-engineered) protocol.
 
@@ -13,8 +13,8 @@ Modes:
   pull        Unattended sync (nightly GitHub Actions). Loads the token blob
               from the worker store, fetches the trailing window, posts it,
               and saves the (possibly refreshed) tokens back. With --dry-run,
-              prints the payload (plus a raw weigh-in probe) instead of posting
-              it and leaves the stored tokens untouched.
+              prints the payload instead of posting it and leaves the stored
+              tokens untouched.
 
 Environment (both modes):
   CORPUS_BASE_URL        e.g. https://corpus-mcp.whitebirch.workers.dev
@@ -126,10 +126,20 @@ def bootstrap() -> None:
     print(f"Garmin tokens stored for {USER_EMAIL}. Nightly pulls can run unattended now.")
 
 
-# Garmin exposes weigh-ins through two endpoints whose shapes differ; until the
-# ingest path picks one (specs/06-garmin-weigh-ins/SPEC.md §10), --dry-run dumps
-# both raw so the field names/units can be confirmed against a real account.
-WEIGH_IN_PROBES = ("get_body_composition", "get_weigh_ins")
+def fetch_weigh_ins(garmin: Garmin, start: str, end: str) -> dict:
+    """Every weigh-in Garmin has filed under [start, end], as the ingest
+    payload's `weighIns` block. get_weigh_ins (includeAll) groups readings by
+    day; the per-day `allWeightMetrics` lists are flattened, untouched — all
+    mapping happens server-side. The window travels with the entries because
+    the server deletes rows in it that Garmin no longer returns, so an
+    unexpected response shape raises (the caller then omits `weighIns`)
+    rather than ever being sent as "no weigh-ins"."""
+    data = garmin.get_weigh_ins(start, end)
+    summaries = data.get("dailyWeightSummaries") if isinstance(data, dict) else None
+    if not isinstance(summaries, list):
+        raise ValueError(f"unexpected get_weigh_ins response: {str(data)[:200]}")
+    entries = [m for day in summaries for m in (day.get("allWeightMetrics") or [])]
+    return {"start": start, "end": end, "entries": entries}
 
 
 def pull(days: int, dry_run: bool = False) -> None:
@@ -182,15 +192,15 @@ def pull(days: int, dry_run: bool = False) -> None:
     activities = [{k: a.get(k) for k in ACTIVITY_FIELDS if k in a} for a in raw_activities]
 
     payload = {"userEmail": USER_EMAIL, "days": day_payloads, "activities": activities}
+    # On failure the key is omitted, never sent empty: the server only
+    # reconciles deletes for a window it knows was actually fetched.
+    try:
+        payload["weighIns"] = fetch_weigh_ins(garmin, start, today.isoformat())
+    except Exception as e:  # noqa: BLE001
+        errors.append(f"weigh_ins {start}..{today}: {e}")
 
     if dry_run:
-        probe: dict = {}
-        for name in WEIGH_IN_PROBES:
-            try:
-                probe[name] = getattr(garmin, name)(start, today.isoformat())
-            except Exception as e:  # noqa: BLE001
-                errors.append(f"{name} {start}..{today}: {e}")
-        print(json.dumps({"payload": payload, "weighInProbe": probe}, indent=2, default=str))
+        print(json.dumps(payload, indent=2, default=str))
     else:
         r = requests.post(f"{BASE_URL}/garmin/ingest", headers=AUTH_HEADERS, json=payload, timeout=120)
         if not r.ok:
@@ -215,7 +225,7 @@ def main() -> None:
     p_pull.add_argument(
         "--dry-run",
         action="store_true",
-        help="Print the payload and a raw weigh-in probe instead of posting; tokens are not saved",
+        help="Print the payload instead of posting it; tokens are not saved",
     )
     args = parser.parse_args()
 

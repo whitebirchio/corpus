@@ -64,17 +64,18 @@ Plan: [tasks/plan.md](plan.md) · Spec: [specs/06-garmin-weigh-ins/SPEC.md](../s
 
 ---
 
-## Task 4: Sync job forwards the trailing-window weigh-ins
+## Task 4: Sync job forwards the trailing-window weigh-ins ✅
 
 **Description:** In `pull`, call `get_weigh_ins(start, today)`, flatten each day's `allWeightMetrics`, and forward `weighIns: { start, end: today, entries }`. Remove the dry-run `weighInProbe` (it's no longer needed once the real key is sent; `--dry-run` keeps printing the payload). On a fetch exception, omit the key and add a warning to `errors`. Update the ingest route header comment and the `sync.py` docstring to mention weigh-ins.
 
 **Acceptance criteria:**
-- [ ] Scheduled runs (`--days 1` / `--days 7`) include `weighIns` covering exactly the window they fetched
-- [ ] A failed body-comp fetch doesn't fail the run and doesn't send `weighIns`
+- [x] Scheduled runs (`--days 1` / `--days 7`) include `weighIns` covering exactly the window they fetched
+- [x] A failed weigh-in fetch doesn't fail the run and doesn't send `weighIns`. An unexpected response shape (no `dailyWeightSummaries` list) counts as a failure, never as "no weigh-ins"
 
 **Verification:**
-- [ ] `python -m py_compile apps/garmin-sync/sync.py`
-- [ ] Manual: `pull --days 3 --dry-run` shows `weighIns`. A real `pull --days 3` against `npm run dev` (or prod after deploy) prints `weighIns.upserted` ≥ 1, and a second run shows the same rows with no new inserts
+- [x] `python -m py_compile apps/garmin-sync/sync.py`
+- [x] Stub harness (Garmin and requests stubbed, using the live `get_weigh_ins` response from Task 1): 11/11 checks. These cover flattening, the window bounds for 1 and 7 days, failure and odd shapes omitting the key, a real empty result sent as `[]`, and dry-run making no POST or PUT
+- [ ] Manual (Scott, **after deploy**: prod doesn't accept `weighIns` until this branch ships): a real `pull --days 3` prints `weighIns.upserted` ≥ 1, and a second run shows the same rows with `deleted: 0`
 
 **Dependencies:** Tasks 1, 2, 3 (the server must accept and reconcile the key before the job sends it)
 **Files likely touched:** `apps/garmin-sync/sync.py`, `apps/mcp-server/src/garmin.ts`

@@ -6,8 +6,9 @@
  *
  *   GET  /garmin/tokens?user=<email>  → stored session token blob (or null)
  *   PUT  /garmin/tokens?user=<email>  → store/rotate the token blob
- *   POST /garmin/ingest               → { userEmail, days, activities } →
- *                                       import summary
+ *   POST /garmin/ingest               → { userEmail, days, activities,
+ *                                         weighIns? } → import summary
+ *                                       (weighIns: specs/06-garmin-weigh-ins)
  *
  * The token store lets the stateless Actions runner reuse Garmin's refreshed
  * session across runs — only the very first login (or a revoked refresh
