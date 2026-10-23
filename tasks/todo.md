@@ -43,18 +43,20 @@ Plan: [tasks/plan.md](plan.md) · Spec: [specs/06-garmin-weigh-ins/SPEC.md](../s
 
 ---
 
-## Task 3: Core: window-scoped delete reconciliation
+## Task 3: Core: window-scoped delete reconciliation ✅
 
-**Description:** When `weighIns` is present, delete `garmin_export` rows whose local date (user timezone) falls in `[start, end]` and whose `measured_at` isn't among the payload's mapped timestamps. Report `deleted` in the summary.
+**Description:** When `weighIns` is present, delete `garmin_export` rows filed under a Garmin `calendarDate` in `[start, end]` whose `measured_at` isn't among the payload's mapped timestamps. Report `deleted` in the summary.
 
 **Acceptance criteria:**
-- [ ] A `garmin_export` row inside the window that is missing from the payload is deleted. Rows outside the window, and `checkin` and DEXA rows inside it, survive
-- [ ] A payload with no `weighIns` key deletes nothing. An empty `entries` with a window deletes that window's `garmin_export` rows (Garmin really has none)
-- [ ] Window bounds use local dates (a reading late on `end` in the user's timezone counts as in the window)
+- [x] A `garmin_export` row inside the window that is missing from the payload is deleted. Rows outside the window, and `checkin` and DEXA rows inside it, survive
+- [x] A payload with no `weighIns` key deletes nothing. An empty `entries` with a window deletes that window's `garmin_export` rows (Garmin really has none)
+- [x] ~~Window bounds use local dates~~ Window bounds use **Garmin's `calendarDate`** (stored in `extras.garminCalendarDate`). A Corpus-timezone window could delete a near-midnight reading Garmin filed outside the range, and it would never be re-fetched. Rows without a recorded `calendarDate` are never deleted
+
+> Build note: the deviation above came from an adversarial pass over the delete rule before commit (done inline, not by a separate reviewer agent). The spec's decision 4 and §3.2 were updated to match.
 
 **Verification:**
-- [ ] Tests pass: `npx vitest run garmin`
-- [ ] Build: `npm run typecheck`
+- [x] Tests pass: `npx vitest run garmin` (25/25; 5 new reconciliation cases incl. the other user's rows)
+- [x] Build: `npm run typecheck`
 
 **Dependencies:** Task 2
 **Files likely touched:** `packages/core/src/import/garmin.ts`, `packages/core/test/garmin-import.test.ts`

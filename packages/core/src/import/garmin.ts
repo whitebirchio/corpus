@@ -21,7 +21,7 @@
  * `garmin_export` rows keyed on Garmin's real timestamp — tier-2 natural-key
  * dedup on (user_id, measured_at, source), so edits in Garmin update in place.
  */
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lte, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db, UserCtx } from "../db/client.js";
 import {
@@ -214,6 +214,9 @@ export function garminWeighInToMeasurement(
   };
   const fields: Record<string, unknown> = {
     garminSamplePk: num(raw.samplePk),
+    // The date Garmin files this reading under (its account timezone) — the
+    // key delete reconciliation windows on; see reconcileWeighIns.
+    garminCalendarDate: calendarDate,
     sourceType: str(raw.sourceType),
     bmi: positive(raw.bmi),
     bodyWaterPct: positive(raw.bodyWater),
@@ -241,6 +244,39 @@ async function upsertWeighIn(db: Db, ctx: UserCtx, w: GarminWeighIn): Promise<vo
       target: [bodyMeasurements.userId, bodyMeasurements.measuredAt, bodyMeasurements.source],
       set: { ...values, updatedAt: new Date() },
     });
+}
+
+/**
+ * Propagate Garmin-side deletes: drop this user's `garmin_export` weigh-ins
+ * filed under a Garmin calendarDate inside the fetched window whose timestamp
+ * Garmin no longer returns. Only ever called with a window that was actually
+ * fetched — an absent `weighIns` key means "unknown", never "empty". The
+ * window is judged by Garmin's own calendarDate (what it used to answer the
+ * range query), not Corpus's timezone: if the two zones differ, a near-midnight
+ * reading Garmin filed outside the range would otherwise be deleted and never
+ * re-fetched. Rows without a recorded calendarDate, and every other source
+ * (check-ins, DEXA), are never touched.
+ */
+async function reconcileWeighIns(
+  db: Db,
+  ctx: UserCtx,
+  window: { start: string; end: string },
+  keep: Date[],
+): Promise<number> {
+  const garminDate = sql<string>`(${bodyMeasurements.extras} ->> 'garminCalendarDate')`;
+  const deleted = await db
+    .delete(bodyMeasurements)
+    .where(
+      and(
+        eq(bodyMeasurements.userId, ctx.userId),
+        eq(bodyMeasurements.source, "garmin_export"),
+        gte(garminDate, window.start), // ISO dates compare correctly as text
+        lte(garminDate, window.end),
+        keep.length > 0 ? notInArray(bodyMeasurements.measuredAt, keep) : undefined,
+      ),
+    )
+    .returning({ id: bodyMeasurements.id });
+  return deleted.length;
 }
 
 // --- activities -------------------------------------------------------------
@@ -493,14 +529,19 @@ export async function importGarminData(
     weighIns: { upserted: [], deleted: 0, skipped: 0 },
   };
 
-  for (const raw of payload.weighIns?.entries ?? []) {
-    const w = garminWeighInToMeasurement(raw, ctx.timezone);
-    if (!w) {
-      summary.weighIns.skipped++;
-      continue;
+  if (payload.weighIns) {
+    const kept: Date[] = [];
+    for (const raw of payload.weighIns.entries) {
+      const w = garminWeighInToMeasurement(raw, ctx.timezone);
+      if (!w) {
+        summary.weighIns.skipped++;
+        continue;
+      }
+      await upsertWeighIn(db, ctx, w);
+      kept.push(w.measuredAt);
+      summary.weighIns.upserted.push(w.measuredAt.toISOString());
     }
-    await upsertWeighIn(db, ctx, w);
-    summary.weighIns.upserted.push(w.measuredAt.toISOString());
+    summary.weighIns.deleted = await reconcileWeighIns(db, ctx, payload.weighIns, kept);
   }
 
   for (const day of payload.days) {

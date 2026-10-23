@@ -385,7 +385,11 @@ describe("garminWeighInToMeasurement", () => {
     expect(m!.measuredAt.toISOString()).toBe("2026-10-23T11:23:29.005Z"); // 07:23 EDT
     expect(m!.weightKg).toBeCloseTo(70.397, 6);
     expect(m!.bodyFatPct).toBeUndefined();
-    expect(m!.extras).toEqual({ garminSamplePk: 1792754614878, sourceType: "MANUAL" });
+    expect(m!.extras).toEqual({
+      garminSamplePk: 1792754614878,
+      garminCalendarDate: "2026-10-23",
+      sourceType: "MANUAL",
+    });
   });
 
   it("falls back to calendarDate at the nominal 07:00 local weigh-in time", () => {
@@ -401,6 +405,7 @@ describe("garminWeighInToMeasurement", () => {
     expect(m!.bodyFatPct).toBe(18.2);
     expect(m!.extras).toEqual({
       garminSamplePk: 1792668385118,
+      garminCalendarDate: "2026-10-22",
       sourceType: "INDEX_SCALE",
       bmi: 22.4,
       bodyWaterPct: 58.1,
@@ -481,5 +486,109 @@ describe("importGarminData — weigh-ins", () => {
     const summary = await importGarminData(db, ctx, { days: [], activities: [] });
     expect(summary.weighIns).toEqual({ upserted: [], deleted: 0, skipped: 0 });
     expect(await garminWeighIns()).toHaveLength(0);
+  });
+});
+
+describe("importGarminData — weigh-in delete reconciliation", () => {
+  // Window 2026-10-17..2026-10-23, judged by Garmin's own calendarDate — the
+  // date Garmin used to answer the range query — not Corpus's timezone.
+  const at = (iso: string) => new Date(iso);
+
+  async function seedGarmin(measuredAt: Date, garminCalendarDate?: string) {
+    await db.insert(bodyMeasurements).values({
+      userId: ctx.userId,
+      measuredAt,
+      source: "garmin_export",
+      weightKg: 70,
+      extras: garminCalendarDate ? { garminCalendarDate } : null,
+    });
+  }
+
+  async function remaining() {
+    const rows = await db
+      .select()
+      .from(bodyMeasurements)
+      .where(eq(bodyMeasurements.userId, ctx.userId))
+      .orderBy(bodyMeasurements.measuredAt);
+    return rows.map((r) => `${r.source}@${r.measuredAt.toISOString()}`);
+  }
+
+  it("deletes garmin_export rows in the window that Garmin no longer has", async () => {
+    await seedGarmin(at("2026-10-20T11:41:17.007Z"), "2026-10-20"); // deleted in Garmin since
+    const summary = await importGarminData(db, ctx, {
+      days: [],
+      activities: [],
+      weighIns: weighInWindow([manualWeighIn]),
+    });
+    expect(summary.weighIns.deleted).toBe(1);
+    expect(await remaining()).toEqual(["garmin_export@2026-10-23T11:23:29.005Z"]);
+  });
+
+  it("bounds the window by Garmin's calendarDate and never touches other sources", async () => {
+    // Late on 10-23 per Garmin (03:30Z on 10-24): inside the window → deleted.
+    await seedGarmin(at("2026-10-24T03:30:00.000Z"), "2026-10-23");
+    // 10-16 per Garmin: before the window → kept. Note 04:30Z is 00:30 on
+    // 10-17 in Corpus's America/New_York, so a Corpus-timezone window would
+    // wrongly delete it if Garmin's clock is set to a zone further west.
+    await seedGarmin(at("2026-10-17T04:30:00.000Z"), "2026-10-16");
+    // 10-24 per Garmin: after the window → kept.
+    await seedGarmin(at("2026-10-24T04:30:00.000Z"), "2026-10-24");
+    // No calendarDate recorded: unknowable, so conservatively kept.
+    await seedGarmin(at("2026-10-20T12:00:00.000Z"));
+    // Other sources inside the window → kept.
+    await upsertDailyCheckin(db, ctx, { date: "2026-10-21", weight: { value: 157, unit: "lb" } });
+    await db.insert(bodyMeasurements).values({
+      userId: ctx.userId,
+      measuredAt: at("2026-10-19T14:00:00.000Z"),
+      source: "document_extraction",
+      weightKg: 71.2,
+      boneMineralContentKg: 3.0,
+    });
+
+    const summary = await importGarminData(db, ctx, {
+      days: [],
+      activities: [],
+      weighIns: weighInWindow([]),
+    });
+    expect(summary.weighIns.deleted).toBe(1);
+    expect(await remaining()).toEqual([
+      "garmin_export@2026-10-17T04:30:00.000Z",
+      "document_extraction@2026-10-19T14:00:00.000Z",
+      "garmin_export@2026-10-20T12:00:00.000Z",
+      "checkin@2026-10-21T11:00:00.000Z",
+      "garmin_export@2026-10-24T04:30:00.000Z",
+    ]);
+  });
+
+  it("deletes nothing when the payload has no weighIns (fetch failed)", async () => {
+    await seedGarmin(at("2026-10-20T11:41:17.007Z"), "2026-10-20");
+    const summary = await importGarminData(db, ctx, { days: [], activities: [] });
+    expect(summary.weighIns.deleted).toBe(0);
+    expect(await remaining()).toHaveLength(1);
+  });
+
+  it("keeps rows still present in Garmin across re-runs", async () => {
+    const payload = { days: [], activities: [], weighIns: weighInWindow([manualWeighIn]) };
+    await importGarminData(db, ctx, payload);
+    const again = await importGarminData(db, ctx, payload);
+    expect(again.weighIns.deleted).toBe(0);
+    expect(await remaining()).toEqual(["garmin_export@2026-10-23T11:23:29.005Z"]);
+  });
+
+  it("only reconciles the importing user's rows", async () => {
+    const other = await createTestUser(db, { email: "someone@example.com" });
+    await db.insert(bodyMeasurements).values({
+      userId: other.userId,
+      measuredAt: at("2026-10-20T11:41:17.007Z"),
+      source: "garmin_export",
+      weightKg: 60,
+      extras: { garminCalendarDate: "2026-10-20" },
+    });
+    await importGarminData(db, ctx, { days: [], activities: [], weighIns: weighInWindow([]) });
+    const otherRows = await db
+      .select()
+      .from(bodyMeasurements)
+      .where(eq(bodyMeasurements.userId, other.userId));
+    expect(otherRows).toHaveLength(1);
   });
 });
