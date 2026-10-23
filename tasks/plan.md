@@ -44,7 +44,7 @@ Tasks 2–4 and 5–6 are independent chains. Task 6 should still not ship befor
 - [ ] Human review before touching the conversational surface
 
 ### Phase 2: Stop asking
-- [ ] Task 5: Daily summary exposes the latest weigh-in's date and source
+- [x] Task 5: Daily summary exposes the latest weigh-in's date and source — done 2026-10-23
 - [ ] Task 6: `morning_checkin` stops asking for weight; `log_daily_checkin` de-emphasizes it
 
 ### Checkpoint B: one-entry morning

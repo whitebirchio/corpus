@@ -90,17 +90,17 @@ Plan: [tasks/plan.md](plan.md) · Spec: [specs/06-garmin-weigh-ins/SPEC.md](../s
 
 ---
 
-## Task 5: Daily summary exposes the latest weigh-in's date and source
+## Task 5: Daily summary exposes the latest weigh-in's date and source ✅
 
 **Description:** `getDailySummary` already selects `measuredAt` for the latest weight but drops it. Return `latestWeighIn: { weightKg, measuredOn (local date), source }` (keeping `latestWeightKg` for back-compat). Pass `measuredOn` and `source` through the `get_daily_summary` tool's `latestWeight` object so the prompt can tell whether a reading is from today.
 
 **Acceptance criteria:**
-- [ ] `get_daily_summary` shows the latest weight with its local date and source
-- [ ] Existing summary consumers (PWA, tools) keep working unchanged
+- [x] `get_daily_summary` shows the latest weight with its local date and source
+- [x] Existing summary consumers (PWA, tools) keep working unchanged
 
 **Verification:**
-- [ ] Tests pass: `npx vitest run summary` (add or extend a case asserting `measuredOn`/`source`)
-- [ ] Build: `npm run typecheck` (whole workspace, which catches `apps/web` consumers)
+- [x] Tests pass: `npx vitest run summary` (add or extend a case asserting `measuredOn`/`source`)
+- [x] Build: `npm run typecheck` (whole workspace, which catches `apps/web` consumers)
 
 **Dependencies:** None (independent of Tasks 1–4)
 **Files likely touched:** `packages/core/src/repos/summary.ts`, `packages/core/test/summary*.test.ts`, `apps/mcp-server/src/tools.ts`
