@@ -68,7 +68,11 @@ export const logDailyCheckinShape = {
   trainingReadiness: z.number().int().min(0).max(100).optional().describe("Garmin readiness score"),
   vo2max: z.number().positive().optional().describe("Watch-estimated VO2 max"),
   energy: z.number().int().min(1).max(5).optional().describe("Subjective energy 1-5"),
-  weight: massValue.optional().describe("Morning weigh-in, if taken"),
+  weight: massValue
+    .optional()
+    .describe(
+      "Fallback only — weigh-ins sync from Garmin Connect. Set only if the user volunteers one (e.g. Garmin sync down)",
+    ),
   bodyFatPct: z.number().min(1).max(75).optional().describe("Scale body-fat %, if shown"),
   sorenessNotes: z.string().optional(),
   notes: z.string().optional(),

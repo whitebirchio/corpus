@@ -8,6 +8,8 @@
 #     that covers a missed run or data Garmin backfilled late.
 # Both are idempotent re-runs (see packages/core/src/import/garmin.ts), so
 # overlapping windows are safe. Failure emails come from GitHub by default.
+# A manual run with `weight_since` set instead backfills every Garmin weigh-in
+# from that date (specs/06-garmin-weigh-ins; one-time history import).
 #
 # Secrets: CORPUS_INGEST_SECRET (mirrors the worker's GARMIN_INGEST_SECRET).
 # Garmin credentials are NOT stored here — tokens are bootstrapped locally
@@ -24,6 +26,10 @@ on:
         description: "Trailing days to pull"
         required: false
         default: "7"
+      weight_since:
+        description: "One-time weigh-in backfill from YYYY-MM-DD (leave empty for a normal pull)"
+        required: false
+        default: ""
 
 jobs:
   sync:
@@ -38,8 +44,16 @@ jobs:
           cache: pip
           cache-dependency-path: apps/garmin-sync/requirements.txt
       - run: pip install -r apps/garmin-sync/requirements.txt
-      - run: python apps/garmin-sync/sync.py pull --days "${{ inputs.days || (github.event.schedule == '30 09 * * *' && '7' || '1') }}"
+      # Inputs go through env, not inline ${{ }} in the script (no shell injection).
+      - run: |
+          if [ -n "$WEIGHT_SINCE" ]; then
+            python apps/garmin-sync/sync.py pull --weight-since "$WEIGHT_SINCE"
+          else
+            python apps/garmin-sync/sync.py pull --days "$DAYS"
+          fi
         env:
+          DAYS: ${{ inputs.days || (github.event.schedule == '30 09 * * *' && '7' || '1') }}
+          WEIGHT_SINCE: ${{ inputs.weight_since }}
           CORPUS_BASE_URL: https://corpus-mcp.whitebirch.workers.dev
           CORPUS_INGEST_SECRET: ${{ secrets.CORPUS_INGEST_SECRET }}
           CORPUS_USER_EMAIL: scott.schmalz@gmail.com

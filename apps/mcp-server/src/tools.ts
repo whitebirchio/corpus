@@ -140,6 +140,8 @@ export function registerTools(
       title: "Log daily check-in",
       description:
         "Record the morning check-in: sleep, HRV, resting HR, steps, subjective energy, and an optional weigh-in. " +
+        "Weigh-ins sync automatically from Garmin Connect — do NOT ask the user for their weight; pass `weight` only if " +
+        "they volunteer one or say the Garmin sync is down. " +
         "Upserts by date — re-logging a day updates the provided fields and preserves the rest, so it is always safe to call. " +
         "Pass quantities unit-tagged (e.g. weight { value: 178.2, unit: 'lb' }); the server converts.",
       inputSchema: logDailyCheckinShape,
@@ -789,23 +791,26 @@ export function registerTools(
         "The morning-briefing payload for a date (default today): last night's sleep/HRV/RHR, today's macros vs targets, " +
         "recent training with muscle-group volume (7d), today's planned session if any (todaysPlan — with its status and " +
         "whether it's been done), active goals with milestones, current regimen, standing insights, and today's observations. " +
+        "latestWeight is the newest weigh-in with its local date (measuredOn) and source — weigh-ins sync from Garmin " +
+        "Connect (source garmin_export), so if measuredOn isn't today, today's hasn't synced yet. " +
         "Call this FIRST in any daily conversation. For the full prescription of todaysPlan, call get_training_plan.",
       inputSchema: { date: z.iso.date().optional() },
     },
     async ({ date }) => {
       try {
-        const summary = await run((db, c) => getDailySummary(db, c, date));
+        const { latestWeighIn, ...summary } = await run((db, c) => getDailySummary(db, c, date));
         const p = getProps();
         return ok({
           ...summary,
-          latestWeight:
-            summary.latestWeightKg != null
-              ? {
-                  kg: summary.latestWeightKg,
-                  lb: Math.round(kgToLb(summary.latestWeightKg) * 10) / 10,
-                  display: formatMass(summary.latestWeightKg, p.unitPreference),
-                }
-              : null,
+          latestWeight: latestWeighIn
+            ? {
+                kg: latestWeighIn.weightKg,
+                lb: Math.round(kgToLb(latestWeighIn.weightKg) * 10) / 10,
+                display: formatMass(latestWeighIn.weightKg, p.unitPreference),
+                measuredOn: latestWeighIn.measuredOn,
+                source: latestWeighIn.source,
+              }
+            : null,
         });
       } catch (e) {
         return err(e);

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db, UserCtx } from "../src/db/client.js";
+import { bodyMeasurements } from "../src/db/schema.js";
 import { upsertGoal } from "../src/repos/goals.js";
 import { getDailySummary } from "../src/repos/summary.js";
 import { linkWorkoutToPlan, planWeek, upsertMilestone } from "../src/repos/training.js";
@@ -101,5 +102,38 @@ describe("getDailySummary — goals carry milestones", () => {
     expect(g).toBeDefined();
     expect(g!.milestones).toHaveLength(1);
     expect(g!.milestones[0]!.title).toBe("30 mi/week base");
+  });
+});
+
+describe("getDailySummary — latest weigh-in", () => {
+  it("is null when nothing has been weighed", async () => {
+    const summary = await getDailySummary(db, ctx, "2026-10-23");
+    expect(summary.latestWeighIn).toBeNull();
+    expect(summary.latestWeightKg).toBeNull();
+  });
+
+  it("reports the newest reading with its local date and source", async () => {
+    await db.insert(bodyMeasurements).values([
+      {
+        userId: ctx.userId,
+        measuredAt: new Date("2026-10-22T11:26:20.004Z"),
+        source: "garmin_export",
+        weightKg: 70.76,
+      },
+      // 23:30 on 10-23 in America/New_York — 10-24 in UTC.
+      {
+        userId: ctx.userId,
+        measuredAt: new Date("2026-10-24T03:30:00.000Z"),
+        source: "garmin_export",
+        weightKg: 70.397,
+      },
+    ]);
+    const summary = await getDailySummary(db, ctx, "2026-10-23");
+    expect(summary.latestWeighIn).toEqual({
+      weightKg: 70.397,
+      measuredOn: "2026-10-23",
+      source: "garmin_export",
+    });
+    expect(summary.latestWeightKg).toBe(70.397); // kept for existing consumers
   });
 });

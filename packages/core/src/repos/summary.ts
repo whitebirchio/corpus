@@ -12,7 +12,7 @@ import {
   type PlannedDaySummary,
 } from "./training.js";
 import { getRecentWorkouts, muscleGroupVolume, type RecentWorkout } from "./workouts.js";
-import { todayIn } from "../time.js";
+import { localDateOf, todayIn } from "../time.js";
 
 /**
  * The morning-briefing payload (specs/01-initial-platform/SPEC.md §6.2 get_daily_summary): one call
@@ -35,6 +35,9 @@ export interface DailySummary {
   }>;
   muscleGroupVolume7d: Record<string, number>;
   latestWeightKg: number | null;
+  /** The newest weigh-in with its local date and source — lets the morning
+   * check-in tell "already synced from Garmin today" from "not yet". */
+  latestWeighIn: { weightKg: number; measuredOn: string; source: string } | null;
   /** Today's planned session (forward-looking), or null when nothing is planned. */
   todaysPlan: PlannedDaySummary | null;
   goals: GoalWithMilestones[];
@@ -59,7 +62,11 @@ export async function getDailySummary(db: Db, ctx: UserCtx, date?: string): Prom
     ]);
 
   const weightRows = await db
-    .select({ weightKg: bodyMeasurements.weightKg, measuredAt: bodyMeasurements.measuredAt })
+    .select({
+      weightKg: bodyMeasurements.weightKg,
+      measuredAt: bodyMeasurements.measuredAt,
+      source: bodyMeasurements.source,
+    })
     .from(bodyMeasurements)
     .where(and(eq(bodyMeasurements.userId, ctx.userId), isNotNull(bodyMeasurements.weightKg)))
     .orderBy(desc(bodyMeasurements.measuredAt))
@@ -78,6 +85,14 @@ export async function getDailySummary(db: Db, ctx: UserCtx, date?: string): Prom
     recentWorkouts: recent.map(mapRecent),
     muscleGroupVolume7d: volume,
     latestWeightKg: weightRows[0]?.weightKg ?? null,
+    latestWeighIn:
+      weightRows[0]?.weightKg != null
+        ? {
+            weightKg: weightRows[0].weightKg,
+            measuredOn: localDateOf(weightRows[0].measuredAt, ctx.timezone),
+            source: weightRows[0].source,
+          }
+        : null,
     todaysPlan,
     goals,
     regimen,
