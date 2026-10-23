@@ -4,19 +4,19 @@ Plan: [tasks/plan.md](plan.md) · Spec: [specs/06-garmin-weigh-ins/SPEC.md](../s
 
 ---
 
-## Task 1: Confirm the live `get_body_composition` payload shape
+## Task 1: Confirm the live weigh-in payload shape ✅
 
 **Description:** Add a `--dry-run` flag to `sync.py pull` that fetches everything as usual, including a new `get_body_composition(start, today)` call, and prints the JSON payload instead of POSTing it or saving tokens. Run it once against Scott's account and save a scrubbed sample of `dateWeightList` (one manual entry, and one scale entry if any exist) as the canonical fixture shape for Task 2.
 
 **Acceptance criteria:**
 - [x] `pull --dry-run` prints the payload and makes no `POST /garmin/ingest` or `PUT /garmin/tokens` calls (verified with a stubbed Garmin/requests harness: only `GET /garmin/tokens` issued)
-- [ ] The actual field names and units for timestamp, weight, sample id, body fat and source type are recorded in the spec §10 (risk resolved or updated) — **waiting on Scott's live run**
+- [x] The actual field names and units for timestamp, weight, sample id, body fat and source type are recorded in the spec §10 (resolved 2026-10-23: grams, `timestampGMT` = UTC ms, `date` is a local-as-UTC trap; `get_weigh_ins` chosen)
 
 > Build note: the library has two candidate endpoints, `get_body_composition` (`/weight/dateRange`) and `get_weigh_ins` (`/weight/range?includeAll=true`). The dry run dumps both under `weighInProbe`, and the live output decides which one Task 4 forwards (it must list every individual reading with a stable timestamp/id).
 
 **Verification:**
 - [x] `python -m py_compile apps/garmin-sync/sync.py`
-- [ ] Manual: Scott runs `python apps/garmin-sync/sync.py pull --days 7 --dry-run` locally (needs `CORPUS_*` env) and pastes the `weighInProbe` portion
+- [x] Manual: Scott ran `pull --days 7 --dry-run` against prod (7 manual entries, 2026-10-17..23, both endpoints identical)
 
 **Dependencies:** None
 **Files likely touched:** `apps/garmin-sync/sync.py`, `specs/06-garmin-weigh-ins/SPEC.md`
@@ -64,7 +64,7 @@ Plan: [tasks/plan.md](plan.md) · Spec: [specs/06-garmin-weigh-ins/SPEC.md](../s
 
 ## Task 4: Sync job forwards the trailing-window weigh-ins
 
-**Description:** In `pull`, forward `weighIns: { start, end: today, entries: dateWeightList }`. On a fetch exception, omit the key and add a warning to `errors`. Update the ingest route header comment and the `sync.py` docstring to mention weigh-ins.
+**Description:** In `pull`, call `get_weigh_ins(start, today)`, flatten each day's `allWeightMetrics`, and forward `weighIns: { start, end: today, entries }`. Remove the dry-run `weighInProbe` (it's no longer needed once the real key is sent; `--dry-run` keeps printing the payload). On a fetch exception, omit the key and add a warning to `errors`. Update the ingest route header comment and the `sync.py` docstring to mention weigh-ins.
 
 **Acceptance criteria:**
 - [ ] Scheduled runs (`--days 1` / `--days 7`) include `weighIns` covering exactly the window they fetched

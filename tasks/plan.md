@@ -24,7 +24,7 @@ Tasks 2–4 and 5–6 are independent chains. Task 6 should still not ship befor
 
 ## Architecture decisions (from the spec, restated as build constraints)
 
-- **One write path.** All mapping, unit conversion (g → kg via `toKg`) and reconciliation live in `packages/core/src/import/garmin.ts`. `sync.py` only forwards raw `dateWeightList`.
+- **One write path.** All mapping, unit conversion (g → kg via `toKg`) and reconciliation live in `packages/core/src/import/garmin.ts`. `sync.py` only forwards raw `get_weigh_ins` entries (flattened `allWeightMetrics`).
 - **The `weighIns` key is optional and carries its window** (`start`, `end`, `entries`). If it is absent, core does nothing, which keeps a failed fetch distinct from an empty one.
 - **Reconciliation deletes only `garmin_export` rows inside `[start, end]`**, using local dates in the user's timezone.
 - **Reuse, don't duplicate**: export `WEIGH_IN_TIME` from `repos/checkins.ts`. Use `zonedToUtc` from `time.ts`, and `num`/`str` from the importer.
@@ -33,7 +33,7 @@ Tasks 2–4 and 5–6 are independent chains. Task 6 should still not ship befor
 ## Task list
 
 ### Phase 1: Ingest path (fail fast on the riskiest unknown)
-- [ ] Task 1: Confirm the live `get_body_composition` payload shape (spike, needs Scott's env)
+- [x] Task 1: Confirm the live weigh-in payload shape (spike, needs Scott's env) — done 2026-10-23, `get_weigh_ins` chosen
 - [ ] Task 2: Core: weigh-ins in the ingest payload upsert into `body_measurements`
 - [ ] Task 3: Core: window-scoped delete reconciliation
 - [ ] Task 4: Sync job forwards the trailing-window weigh-ins

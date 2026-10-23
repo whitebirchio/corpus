@@ -31,10 +31,11 @@ This epic makes **Garmin Connect the single place a weigh-in is entered**. Corpu
 
 ### 3.1 Sync job (`apps/garmin-sync/sync.py`)
 
-- `pull --days N`: after the per-day loop, call `garmin.get_body_composition(start, today)` once for the window. Forward `dateWeightList` as:
+- `pull --days N`: after the per-day loop, call `garmin.get_weigh_ins(start, today)` once for the window (`/weight/range?includeAll=true`). Flatten every day's `allWeightMetrics` into one list (a shape unwrap only, like the existing `hrvSummary` one — no field mapping) and forward it as:
   ```json
-  "weighIns": { "start": "2026-10-17", "end": "2026-10-23", "entries": [ ...raw dateWeightList... ] }
+  "weighIns": { "start": "2026-10-17", "end": "2026-10-23", "entries": [ ...raw allWeightMetrics entries... ] }
   ```
+  `get_weigh_ins` was chosen over `get_body_composition` (`/weight/dateRange`) because `includeAll` explicitly lists every reading per day; both returned identical entries in the live probe (§10).
   If the fetch raises an exception, **omit `weighIns`** and add a warning to `errors` (same try/except-warn pattern as the other fetches).
 - `pull --weight-since YYYY-MM-DD` (backfill): loop in ~90-day chunks from that date to today and POST each as `{ userEmail, days: [], activities: [], weighIns: {...} }`. Print each chunk's summary.
 - Workflow: add an optional `weight_since` input to `garmin-sync.yml` `workflow_dispatch`, so the backfill can run from GitHub as well as locally.
@@ -88,7 +89,7 @@ Match `import/garmin.ts`: the `num`/`str` helpers, screening of Garmin sentinels
 
 ## 7. Testing strategy (PGlite, `garmin-import.test.ts`)
 
-Fixtures are shaped like `get_body_composition().dateWeightList`. Cases:
+Fixtures copy the live entry shape recorded in §10. Cases:
 
 1. Grams→kg mapping. `timestampGMT` becomes `measured_at`.
 2. Fallback to `calendarDate` + 07:00 local when `timestampGMT` is absent.
@@ -113,5 +114,16 @@ Fixtures are shaped like `get_body_composition().dateWeightList`. Cases:
 
 ## 10. Open questions / risks
 
-- `garminconnect==0.3.6` field names and units (`timestampGMT`, `weight` in grams, `samplePk`, `bodyFat`) are from the library's typical payload and still need checking. **Log one live `--days 3` payload before trusting the mapper.** Adjust the fixtures to match.
-- Garmin may cap the range of a single `get_body_composition` call. The 90-day chunking should cover that; confirm on the first backfill.
+- ~~Field names and units unverified~~ **Resolved 2026-10-23** by a live `pull --days 7 --dry-run` (Task 1). Each weigh-in entry from both endpoints has this shape (values from a manual entry):
+  ```json
+  { "samplePk": 1792754614878, "date": 1792740209005, "calendarDate": "2026-10-23",
+    "weight": 70397.0, "bmi": null, "bodyFat": null, "bodyWater": null, "boneMass": null,
+    "muscleMass": null, "physiqueRating": null, "visceralFat": null, "metabolicAge": null,
+    "sourceType": "MANUAL", "timestampGMT": 1792754609005, "weightDelta": null }
+  ```
+  - `weight` is **grams**. `timestampGMT` is the true UTC instant in epoch ms (converts to 07:23 America/New_York here).
+  - `date` is **local wall-clock time encoded as if it were UTC** (off by the UTC offset), so it must never be used as `measured_at`.
+  - `samplePk` is the entry's creation time and id: a backdated entry (Oct 18 entered on Oct 20) keeps its creation-time `samplePk` but carries the measurement's `timestampGMT`. Store it in `extras` only.
+  - Scale fields are all null for `MANUAL` entries. No Index-scale sample exists yet, so scale-field handling is unit-tested against the documented names only.
+  - `get_weigh_ins` returns `{ dailyWeightSummaries: [{ summaryDate, numOfWeightEntries, latestWeight, allWeightMetrics: [...] }], totalAverage, previousDateWeight, nextDateWeight }`.
+- Garmin may cap the range of a single `get_weigh_ins` call. The 90-day chunking should cover that; confirm on the first backfill.
