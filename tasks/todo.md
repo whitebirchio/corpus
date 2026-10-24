@@ -80,7 +80,7 @@ Plan: [`tasks/plan.md`](plan.md). Spec: [`specs/07-macro-meters/SPEC.md`](../spe
 ## Checkpoint: Feature complete
 - [x] `npm run typecheck && npm test` green (whole workspace, mirrors CI)
 - [x] Visual check of all four bars, light and dark, on under/near/over days (spec §6) (static render of the real CSS + markup; Chrome extension was offline, so no live dev:ui)
-- [ ] Scott reviews, including the amber hue (spec §9), before close-out
+- [x] Scott reviews, including the amber hue (spec §9), before close-out (confirmed live 2026-10-24; amber kept)
 
 ## Phase 3: Close-out
 
