@@ -19,6 +19,8 @@ import { findOrCreateUser, garminIngestPayload, importGarminData } from "@corpus
 import { withAuthDb, withUserDb } from "./db.js";
 
 const TOKENS_KEY_PREFIX = "garmin-tokens:";
+/** ISO time of the last successful ingest — read by get_daily_summary to flag a stalled sync. */
+export const LAST_INGEST_KEY_PREFIX = "garmin-last-ingest:";
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data, null, 2), {
@@ -93,18 +95,54 @@ export async function handleGarmin(request: Request, env: Env): Promise<Response
       return json({ error: "Invalid payload", issues: parsed.error.issues }, 400);
     }
 
-    const user = await withAuthDb(env, email, (db) =>
-      findOrCreateUser(db, email, email.split("@")[0]!, env.DEFAULT_TIMEZONE),
-    );
-    const ctx = {
-      userId: user.id,
-      timezone: user.timezone,
-      unitPreference: user.unitPreference,
-    };
-    const summary = await withUserDb(env, user.id, (db) =>
-      importGarminData(db, ctx, parsed.data),
-    );
-    return json(summary);
+    // Uncaught, a DB error (e.g. a stalled Neon connection) surfaces as an
+    // opaque Cloudflare 1101 HTML page. Catch it: log the stage + stack to
+    // Workers Logs and hand the sync job a structured 500 it can retry —
+    // every payload is idempotent, so a retry is always safe.
+    let stage = "user_lookup";
+    const started = Date.now();
+    try {
+      const user = await withAuthDb(env, email, (db) =>
+        findOrCreateUser(db, email, email.split("@")[0]!, env.DEFAULT_TIMEZONE),
+      );
+      const ctx = {
+        userId: user.id,
+        timezone: user.timezone,
+        unitPreference: user.unitPreference,
+      };
+      stage = "import";
+      const summary = await withUserDb(env, user.id, (db) =>
+        importGarminData(db, ctx, parsed.data),
+      );
+      console.log(
+        JSON.stringify({
+          event: "garmin_ingest_ok",
+          ms: Date.now() - started,
+          days: summary.days.updated.length,
+          weighIns: summary.weighIns.upserted.length,
+          weighInsDeleted: summary.weighIns.deleted,
+        }),
+      );
+      try {
+        await env.OAUTH_KV.put(`${LAST_INGEST_KEY_PREFIX}${email}`, new Date().toISOString());
+      } catch (e) {
+        // The data landed; a missed health stamp must not fail the ingest.
+        console.error(JSON.stringify({ event: "garmin_last_ingest_stamp_failed", error: String(e) }));
+      }
+      return json(summary);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      console.error(
+        JSON.stringify({
+          event: "garmin_ingest_failed",
+          stage,
+          ms: Date.now() - started,
+          error: message,
+          stack: e instanceof Error ? e.stack : undefined,
+        }),
+      );
+      return json({ error: "Ingest failed", stage, message }, 500);
+    }
   }
 
   return json({ error: "Not found" }, 404);

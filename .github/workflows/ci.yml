@@ -17,3 +17,5 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      # Garmin sync job (stdlib-only tests; garminconnect/requests are stubbed).
+      - run: python3 apps/garmin-sync/test_sync.py

@@ -45,6 +45,14 @@ Tests: 13 new import cases in `garmin-import.test.ts` (fixtures copy a live entr
 - Scott's 7 recent weigh-ins are all `MANUAL`, with every scale field null. Index-scale handling is tested against the documented field names only.
 - The Oct 18 entry was created on Oct 20 (`samplePk` is a creation-time id) and has the same weight as Oct 20 (70.08 kg). It might be a duplicate entry in Garmin. It syncs as is.
 
+## Post-launch hardening (2026-10-24)
+
+First day in production surfaced three problems, none caused by the epic's code:
+
+1. **GitHub stopped scheduling `garmin-sync` on 2026-10-16** (no runs for a week; no email, since a run that never starts can't fail). Two manual dispatches on 10-23 became uncancellable, undeletable ghost runs (queued, zero jobs; GitHub returns "completed" / "not yet queued" / 403). A disable/enable reset revived the schedule, but runs then arrived 37 min–3 h late and some were dropped. **Fix:** crons moved off the top of the hour (`23 */4`, `47 9`), the 4-hourly window widened to 2 days so a dropped run self-heals, a 15 min job timeout, and a `garminSync` staleness signal in `get_daily_summary` (KV `garmin-last-ingest:<email>`, stale after 12 h, pure logic in core `garminSyncStatus`) that `morning_checkin` reports.
+2. **A scheduled ingest died with Cloudflare 1101** after a ~50 s stall (the healthy run took 5 s total) — almost certainly the per-request Neon connection hanging. The route had no error handling and the worker had no persisted logs, so the cause couldn't be confirmed. **Fix:** `observability` enabled; ingest wrapped to log stage/stack and return a structured 500; `sync.py` retries 5xx/network errors on every worker call (all idempotent).
+3. **`sync.py` was only tested by a throwaway harness.** **Fix:** committed as `apps/garmin-sync/test_sync.py` (stdlib-only, 17 cases incl. retries) and run in CI.
+
 ## Remaining manual steps
 
 1. **Merge to `main`.** CI deploys the worker. Rollout order doesn't matter: the old worker's non-strict payload schema ignores `weighIns`.

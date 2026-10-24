@@ -511,6 +511,34 @@ async function createSessionFromActivity(db: Db, ctx: UserCtx, a: MappedActivity
   }
 }
 
+// --- sync health -------------------------------------------------------------
+
+/**
+ * The scheduled job runs every 4h plus a nightly catch-up, but GitHub's cron
+ * is best-effort: runs get delayed by hours or silently dropped, and a run
+ * that never starts sends no failure email (Oct 16–23 2026 had none at all).
+ * 12h of silence is past any normal gap, so it's surfaced as stale — the
+ * agent flags it at the next check-in instead of the outage going unnoticed.
+ */
+export const GARMIN_SYNC_STALE_HOURS = 12;
+
+export interface GarminSyncStatus {
+  /** ISO time of the last successful /garmin/ingest, or null if none recorded. */
+  lastIngestAt: string | null;
+  hoursSince: number | null;
+  stale: boolean;
+}
+
+export function garminSyncStatus(
+  lastIngestAt: string | null,
+  now: Date = new Date(),
+): GarminSyncStatus {
+  const t = lastIngestAt ? Date.parse(lastIngestAt) : NaN;
+  if (Number.isNaN(t)) return { lastIngestAt, hoursSince: null, stale: true };
+  const hoursSince = Math.round(((now.getTime() - t) / 3_600_000) * 10) / 10;
+  return { lastIngestAt, hoursSince, stale: hoursSince > GARMIN_SYNC_STALE_HOURS };
+}
+
 // --- entry point ------------------------------------------------------------
 
 /**

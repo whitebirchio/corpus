@@ -198,6 +198,19 @@ emails you the workflow failure. Re-run step 3; the next pull backfills the
 missed window automatically. Morning check-ins keep working the whole time —
 the sync is a convenience layer, not the data path.
 
+Two failure modes send **no** email, so Corpus watches for them itself:
+`get_daily_summary` returns `garminSync`, and the morning check-in tells you
+when it's been >12 h since the last successful ingest.
+
+- **GitHub stops scheduling the job.** Its cron is best-effort; runs get
+  delayed or dropped, and on 2026-10-16 it stopped entirely for a week. Run the
+  workflow manually (or `sync.py pull --days 10` locally), and if scheduled
+  runs don't resume, disable and re-enable the workflow.
+- **The worker fails transiently** (e.g. a stalled database connection). The
+  job now retries worker calls 3× with backoff before failing; if it still
+  fails, the error names the stage (`user_lookup` / `import`) and the full
+  stack is in Cloudflare → Workers → `corpus-mcp` → Logs.
+
 ## 8. PWA (optional — the glanceable dashboard)
 
 The web app (specs/02-pwa-client) is a second worker, `corpus-app`, deployed by

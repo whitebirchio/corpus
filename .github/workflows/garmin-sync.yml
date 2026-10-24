@@ -1,13 +1,20 @@
 # Garmin Connect → Corpus sync (specs/01-initial-platform/SPEC.md §8.4).
 #
 # Runs the unofficial-API pull in real Python (the Workers sandbox can't —
-# garminconnect needs raw sockets). Two cadences against a 2,000-min/month
-# free tier:
-#   - every 4h: trailing 1-day window, a cheap same-day refresh.
-#   - nightly (30 09 UTC): trailing 7-day window, the self-healing catch-all
-#     that covers a missed run or data Garmin backfilled late.
+# garminconnect needs raw sockets). Two cadences:
+#   - every 4h: trailing 2-day window, a cheap same-day refresh that also
+#     covers the previous run if GitHub dropped it.
+#   - nightly (09:47 UTC): trailing 7-day window, the self-healing catch-all
+#     that covers missed runs or data Garmin backfilled late.
 # Both are idempotent re-runs (see packages/core/src/import/garmin.ts), so
 # overlapping windows are safe. Failure emails come from GitHub by default.
+#
+# GitHub's cron is best-effort: runs are delayed (we've seen 37 min to 3 h) or
+# silently dropped under load, worst at the top of the hour — and a run that
+# never starts sends no failure email (2026-10-16 → 23 had none at all). So the
+# crons sit at odd minutes, the windows overlap, and staleness is surfaced in
+# Corpus itself: get_daily_summary.garminSync flags >12 h without a successful
+# ingest, so a stalled sync is noticed at the next check-in.
 # A manual run with `weight_since` set instead backfills every Garmin weigh-in
 # from that date (specs/06-garmin-weigh-ins; one-time history import).
 #
@@ -18,8 +25,10 @@ name: garmin-sync
 
 on:
   schedule:
-    - cron: "0 */4 * * *" # same-day refresh, trailing 1 day
-    - cron: "30 09 * * *" # nightly self-heal, trailing 7 days — 05:30/06:30 America/New_York depending on DST
+    # Off the top of the hour on purpose (see above). If you change the nightly
+    # cron, change the matching string in DAYS below too.
+    - cron: "23 */4 * * *" # same-day refresh, trailing 2 days
+    - cron: "47 9 * * *" # nightly self-heal, trailing 7 days — 05:47/04:47 America/New_York depending on DST
   workflow_dispatch:
     inputs:
       days:
@@ -34,11 +43,15 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    # A normal pull takes seconds and the full backfill ~3 min; never let a
+    # hung Garmin or worker call hold a runner for GitHub's 6 h default.
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      # Pinned to 7.0.0: 7.1.0 is days old (2026-10-22); bump after it settles.
+      - uses: actions/setup-python@v7.0.0
         with:
           python-version: "3.12"
           cache: pip
@@ -52,7 +65,7 @@ jobs:
             python apps/garmin-sync/sync.py pull --days "$DAYS"
           fi
         env:
-          DAYS: ${{ inputs.days || (github.event.schedule == '30 09 * * *' && '7' || '1') }}
+          DAYS: ${{ inputs.days || (github.event.schedule == '47 9 * * *' && '7' || '2') }}
           WEIGHT_SINCE: ${{ inputs.weight_since }}
           CORPUS_BASE_URL: https://corpus-mcp.whitebirch.workers.dev
           CORPUS_INGEST_SECRET: ${{ secrets.CORPUS_INGEST_SECRET }}
