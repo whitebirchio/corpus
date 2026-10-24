@@ -33,8 +33,16 @@ CORPUS_USER_EMAIL=scott.schmalz@gmail.com \
 
 # one-time weigh-in history backfill (90-day chunks; idempotent, resumable)
 ... .venv/bin/python sync.py pull --weight-since 2010-01-01
+
+# tests (stdlib only — no venv needed; also run in CI)
+python3 test_sync.py
 ```
+
+Worker calls retry 5xx/network errors twice (15 s, then 45 s) before failing —
+every worker endpoint is idempotent, so that's always safe. 4xx is never
+retried.
 
 If a nightly run fails (GitHub emails on workflow failure), it's usually a
 dead Garmin refresh token — re-run `bootstrap` locally and the next pull
-self-heals, backfilling the missed window.
+self-heals, backfilling the missed window. A run that never *starts* sends no
+email; see docs/SETUP.md §7 "When it breaks".
