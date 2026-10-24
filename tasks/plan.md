@@ -1,85 +1,60 @@
-# Implementation Plan: Garmin weigh-ins (epic 6)
+# Implementation Plan: Macro meters (epic 7)
 
-Spec: [`specs/06-garmin-weigh-ins/SPEC.md`](../specs/06-garmin-weigh-ins/SPEC.md). Task checklist: [`tasks/todo.md`](todo.md).
+Spec: [`specs/07-macro-meters/SPEC.md`](../specs/07-macro-meters/SPEC.md). Task checklist: [`tasks/todo.md`](todo.md).
 
 ## Overview
 
-Weigh-ins entered in Garmin Connect sync into `body_measurements` (`source = 'garmin_export'`). The sync uses Garmin's real timestamps and reconciles deletes, but only within the window it fetched. A one-time `--weight-since` run backfills the full history. Then the `morning_checkin` prompt stops asking for weight. No schema migration is needed, because the existing `(user_id, measured_at, source)` unique key already serves as the natural key.
+The Today view's Nutrition card gets a calorie progress bar under the hero kcal number, and all four bars (calories, protein, carbs, fat) get status colors. A bar is blue below 90% of the day's target, amber from 90% to 100% inclusive, and red when over. Every target is treated as a max. The change is PWA-only presentation (`apps/web`); core, schema, REST, and MCP don't change.
+
+## Architecture decisions
+
+- **Status lives in one pure function.** `meterStatus(value, target)` and `WARN_RATIO = 0.9` go in `apps/web/src/format.ts`, next to the other display helpers. It returns `null` when there's no usable target (null or ≤ 0), which doubles as the "render no bar" signal (AC6). The function isn't in core because no second consumer needs it, and the MCP side stays text-only.
+- **Color is a CSS class, never inline.** The `.fill` element gets `under`/`near`/`over` as a class, and `styles.css` maps `near` → `--warn` (new) and `over` → `--danger` (existing). `under` keeps the base `.fill` rule (`--series-1`), so the default look is unchanged.
+- **One track/fill markup for all four bars.** The calorie bar reuses the `.meter .track/.fill` markup without the head row, because the hero number and caption already show its numbers and the "N over" text (AC5). We pull out a small `MeterBar` component that both `Meter` and the calorie bar render. That avoids a second copy of the clamp and status logic.
+- **Tokens:** light `--warn: #a86a00` (3.36:1 against the track), dark `--warn: #e8a33a` (5.54:1). The spec measured both. Amber and red are close in luminance in light mode, which is why the over-text in AC5 is required.
 
 ## Dependency graph
 
 ```
-garminIngestPayload.weighIns  (core contract — Task 2)
-    ├── mapper + upsert          (core — Task 2)
-    │     └── delete reconciliation (core — Task 3)
-    ├── sync.py trailing-window fetch (Python — Task 4)  ← needs field names confirmed (Task 1)
-    │     └── --weight-since backfill + workflow input + SETUP docs (Task 7)
-    └── (deploy, then live backfill run — Task 8)
-
-getDailySummary.latestWeight date  (core + tool — Task 5)
-    └── morning_checkin prompt + log_daily_checkin description (Task 6)
+meterStatus + WARN_RATIO (format.ts)  ── Task 1 (with unit tests)
+    ├── macro meters colored + --warn token   ── Task 1
+    │     └── macro over-text ("N g over")     ── Task 2
+    └── calorie bar under hero (MeterBar)      ── Task 3
+                                                   └── docs close-out ── Task 4
 ```
 
-Tasks 2–4 and 5–6 are independent chains. Task 6 should still not ship before Task 4 is deployed: otherwise the check-in stops asking for weight before the sync starts providing it.
-
-## Architecture decisions (from the spec, restated as build constraints)
-
-- **One write path.** All mapping, unit conversion (g → kg via `toKg`) and reconciliation live in `packages/core/src/import/garmin.ts`. `sync.py` only forwards raw `get_weigh_ins` entries (flattened `allWeightMetrics`).
-- **The `weighIns` key is optional and carries its window** (`start`, `end`, `entries`). If it is absent, core does nothing, which keeps a failed fetch distinct from an empty one.
-- **Reconciliation deletes only `garmin_export` rows inside `[start, end]`**, using local dates in the user's timezone.
-- **Reuse, don't duplicate**: export `WEIGH_IN_TIME` from `repos/checkins.ts`. Use `zonedToUtc` from `time.ts`, and `num`/`str` from the importer.
-- **Ingest route unchanged**: `apps/mcp-server/src/garmin.ts` already parses via `garminIngestPayload`. Only its header comment changes.
+Tasks 2 and 3 both depend only on Task 1, but they edit the same component in `Today.tsx`, so they run one after the other, not in parallel.
 
 ## Task list
 
-### Phase 1: Ingest path (fail fast on the riskiest unknown)
-- [x] Task 1: Confirm the live weigh-in payload shape (spike, needs Scott's env) — done 2026-10-23, `get_weigh_ins` chosen
-- [x] Task 2: Core: weigh-ins in the ingest payload upsert into `body_measurements` — done 2026-10-23
-- [x] Task 3: Core: window-scoped delete reconciliation — done 2026-10-23 (window keyed on Garmin calendarDate)
-- [x] Task 4: Sync job forwards the trailing-window weigh-ins — done 2026-10-23 (live post-deploy run pending)
+### Phase 1: Status colors on the existing macro meters
+- [ ] Task 1: `meterStatus` + tests + colored protein/carbs/fat fills
+- [ ] Task 2: "N g over" text on over-target macro meters
 
-### Checkpoint A: a weigh-in entered in Garmin reaches Corpus ✅
-- [x] `npm run typecheck && npm test` green
-- [x] Prod pulls after deploy report `weighIns.upserted ≥ 1` with `deleted: 0` (scheduled 10-24 03:13Z; local `--days 10` / `--days 2`)
-- [x] Human review before touching the conversational surface (PR #2 reviewed and merged)
+### Checkpoint: Macro meters
+- [ ] `npm run typecheck && npm test` green
+- [ ] Visual: protein/carbs/fat show blue, amber, and red on suitable days in light and dark mode
 
-### Phase 2: Stop asking
-- [x] Task 5: Daily summary exposes the latest weigh-in's date and source — done 2026-10-23
-- [x] Task 6: `morning_checkin` stops asking for weight; `log_daily_checkin` de-emphasizes it — done 2026-10-23, live-checked 2026-10-24
+### Phase 2: Calorie bar
+- [ ] Task 3: Calorie bar under the hero number, sharing `MeterBar`
 
-### Checkpoint B: one-entry morning ✅
-- [x] Tests and typecheck green
-- [x] After deploy: `morning_checkin` reports the synced weight and never asks for one (Scott, 2026-10-24)
+### Checkpoint: Feature complete
+- [ ] `npm run typecheck && npm test` green
+- [ ] Visual check of all four bars, light and dark, on under/near/over days (spec §6)
+- [ ] Scott reviews before docs close-out
 
-### Phase 3: History and records
-- [x] Task 7: `--weight-since` backfill, `weight_since` workflow input, SETUP docs — done 2026-10-23
-- [x] Task 8: Spec bookkeeping, deploy, and a one-time backfill run (part manual) — done; backfill run locally 2026-10-23 (159 readings)
-
-### Checkpoint C: complete ✅ (closed 2026-10-24)
-- [x] All spec §1 acceptance criteria met (see todo.md; the live edit/delete propagation hasn't yet been seen in a sync summary, and is covered by tests)
-- [x] Overlapping re-runs leave the row count exact (159 after the backfill, then 160 with one new reading)
-- [x] Merged to main and deployed (PR #2, plus post-launch hardening in PR #3)
+### Phase 3: Close-out
+- [ ] Task 4: Mark epic 7 built in spec + README
 
 ## Risks and mitigations
 
 | Risk | Impact | Mitigation |
-|------|--------|------------|
-| `garminconnect` 0.3.6 field names or units differ from what the spec assumes (`timestampGMT`, `weight` in g, `samplePk`, `bodyFat`) | High: wrong values or every entry skipped | Task 1 captures a real payload first, and Task 2's fixtures copy it verbatim |
-| Reconciliation deletes the wrong rows (timezone edge at window bounds, or another source) | High: data loss | Filter on `source = 'garmin_export'` in SQL. Tests cover rows just outside the window, rows in other sources, and an absent key |
-| Garmin caps or slows wide date ranges | Medium: backfill fails | 90-day chunks, each POST independent and idempotent, so a re-run resumes cleanly |
-| Prompt change ships before sync is live | Medium: weight silently not captured for a few days | Merge Phase 2 only alongside or after Phase 1 is deployed. One PR for the epic does that naturally |
-| Same-day `checkin` and `garmin_export` rows during transition | Low: trend averages two nearly equal values | Accepted per spec decision 7. Revisit only if values diverge |
+|---|---|---|
+| Light-mode amber vs. red are close in luminance and hard to tell apart at a glance | Med | Over-text (Task 2) and the hero caption carry "over" in words. Scott can adjust the hue in review (spec §9). |
+| Floating-point edge at exactly 100% (e.g. summed meal macros 160.0000001 g vs a 160 g target) shows red when the display says "160g / 160g" | Low | The spec says to use the raw ratio (AC2). A unit test pins the behavior, and Task 2's over-text (rounded) would read "0 g over". The task hides the over-text when the rounded overage is 0, so the display never claims "0 g over". |
+| `apps/web` tests are typechecked under `tsconfig.node.json` (`include: ["test", …]`), and importing `src/format.ts` from `test/` might pull DOM-lib assumptions | Low | `format.ts` uses only `Intl`/`Date`. If typecheck complains, add the file to that config's `include`, as `worker/session.ts` already is. |
+| No real "near" or "over" day in prod data for the visual check | Low | Use `dev:ui` against a Neon dev branch and log a test meal, or pick past days with ‹ ›. |
 
 ## Open questions
 
-- Task 1 needs Scott's local `CORPUS_INGEST_SECRET` and a working Garmin token. If that isn't available, Task 2 proceeds on the library's documented shape, and Task 1 is re-checked at Checkpoint A.
-- The earliest date for the backfill (`--weight-since`). Scott picks it at run time. Garmin returns nothing before the account's first weigh-in, so an early date such as `2010-01-01` is safe.
-
-## Verification commands
-
-```sh
-npm run typecheck && npm test                     # repo root, CI parity
-npx vitest run garmin                              # packages/core, inner loop
-python -m py_compile apps/garmin-sync/sync.py      # Python syntax check (no Python test suite in repo)
-python apps/garmin-sync/sync.py pull --days 3 --dry-run   # Task 1/4: print payload, no POST
-```
+- Amber hues (spec §9). Current proposals pass contrast. Scott can swap them in review at the Phase 2 checkpoint.
