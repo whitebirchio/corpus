@@ -1,6 +1,6 @@
 # Epic 7 — Macro meters: calorie bar + status colors
 
-**Status:** built 2026-10-24 (branch `epic-7-macro-meters`). Small PWA-only presentation change; no core, schema, or MCP surface changes. Built as specified, with no deviations. `meterStatus`/`gramsOver` live in `apps/web/src/format.ts`, and a shared `MeterBar` renders all four bars. Verified with unit tests plus a static light/dark render of the under, near, and over states. The amber hue (§9) is still open for review: in light mode `#a86a00` reads more mustard than bright amber.
+**Status:** shipped and closed 2026-10-24 (PR #5, squash-merged as `14f9fe5`, deployed by CI). Small PWA-only presentation change; no core, schema, or MCP surface changes. Built as specified, with no deviations. `meterStatus`/`gramsOver` live in `apps/web/src/format.ts`, and a shared `MeterBar` renders all four bars. Verified with unit tests, a static light/dark render of the under, near, and over states, and Scott's live check against real intake. The amber hue (§9) is settled: `#a86a00` stays.
 
 ## 1. Objective
 
@@ -98,4 +98,4 @@ AC1–AC8 hold, verified by the unit tests and the light/dark visual check, with
 
 ## 9. Open questions
 
-- **Amber hues** — `#a86a00` (light) / `#e8a33a` (dark) are proposals that pass contrast; swap in review if you'd prefer a different tone.
+- ~~**Amber hues**~~ — **Resolved 2026-10-24:** Scott kept `#a86a00` (light) / `#e8a33a` (dark). The light shade reads mustard, but it's the lightest amber that keeps 3:1 contrast against the pale-blue track.

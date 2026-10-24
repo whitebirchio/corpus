@@ -41,7 +41,7 @@ Tasks 2 and 3 both depend only on Task 1, but they edit the same component in `T
 ### Checkpoint: Feature complete
 - [x] `npm run typecheck && npm test` green
 - [x] Visual check of all four bars, light and dark, on under/near/over days (spec §6)
-- [ ] Scott reviews before docs close-out
+- [x] Scott reviews before docs close-out (confirmed live 2026-10-24; amber kept)
 
 ### Phase 3: Close-out
 - [x] Task 4: Mark epic 7 built in spec + README
