@@ -37,6 +37,7 @@ import argparse
 import getpass
 import json
 import os
+import re
 import sys
 import time
 from datetime import date, datetime, timedelta
@@ -101,24 +102,66 @@ TIMEZONE = os.getenv("CORPUS_TIMEZONE", "America/New_York")
 
 AUTH_HEADERS = {"Authorization": f"Bearer {SECRET}"}
 
+# Seconds to wait before each retry of a worker call (so 3 attempts total).
+# Every worker endpoint is idempotent — token GET/PUT, and ingest by design
+# (specs/01-initial-platform/SPEC.md §5.9) — so retrying is always safe. A
+# transient failure (e.g. a stalled Neon connection behind the worker, seen
+# 2026-10-24) shouldn't fail the run; a persistent one still does, loudly.
+RETRY_DELAYS = (15, 45)
+
+
+class WorkerError(Exception):
+    """A Corpus worker call failed for good (4xx, or 5xx/network after retries)."""
+
+
+def describe_error(r: requests.Response) -> str:
+    """The useful part of an error response: the worker's JSON error, or the
+    <title> of an HTML error page (a Cloudflare 1101 page is ~10 KB of markup)."""
+    try:
+        body = r.json()
+        if isinstance(body, dict):
+            parts = [str(body[k]) for k in ("error", "stage", "message") if body.get(k)]
+            if parts:
+                return " — ".join(parts)
+    except ValueError:
+        pass
+    m = re.search(r"<title>(.*?)</title>", r.text, re.S | re.I)
+    return m.group(1).strip() if m else r.text[:300]
+
+
+def worker_call(method: str, path: str, *, timeout: int = 30, **kwargs) -> dict:
+    """Call the Corpus worker, retrying 5xx and network errors per RETRY_DELAYS.
+    4xx (bad secret, unknown user, invalid payload) is never retried."""
+    for attempt, delay in enumerate((*RETRY_DELAYS, None), start=1):
+        try:
+            r = requests.request(
+                method, f"{BASE_URL}{path}", headers=AUTH_HEADERS, timeout=timeout, **kwargs
+            )
+        except requests.RequestException as e:
+            problem = f"{type(e).__name__}: {e}"
+        else:
+            if r.ok:
+                return r.json()
+            problem = f"HTTP {r.status_code}: {describe_error(r)}"
+            if r.status_code < 500:
+                raise WorkerError(f"{method} {path} failed — {problem}")
+        if delay is None:
+            raise WorkerError(f"{method} {path} failed after {attempt} attempts — {problem}")
+        print(
+            f"{method} {path} attempt {attempt} failed ({problem}); retrying in {delay}s",
+            file=sys.stderr,
+            flush=True,
+        )
+        time.sleep(delay)
+    raise AssertionError("unreachable")
+
 
 def get_stored_tokens() -> str | None:
-    r = requests.get(
-        f"{BASE_URL}/garmin/tokens", params={"user": USER_EMAIL}, headers=AUTH_HEADERS, timeout=30
-    )
-    r.raise_for_status()
-    return r.json().get("tokens")
+    return worker_call("GET", "/garmin/tokens", params={"user": USER_EMAIL}).get("tokens")
 
 
 def put_stored_tokens(blob: str) -> None:
-    r = requests.put(
-        f"{BASE_URL}/garmin/tokens",
-        params={"user": USER_EMAIL},
-        headers=AUTH_HEADERS,
-        json={"tokens": blob},
-        timeout=30,
-    )
-    r.raise_for_status()
+    worker_call("PUT", "/garmin/tokens", params={"user": USER_EMAIL}, json={"tokens": blob})
 
 
 def bootstrap() -> None:
@@ -157,10 +200,10 @@ def login_from_store() -> Garmin:
 
 
 def post_ingest(payload: dict) -> dict:
-    r = requests.post(f"{BASE_URL}/garmin/ingest", headers=AUTH_HEADERS, json=payload, timeout=120)
-    if not r.ok:
-        sys.exit(f"Ingest failed ({r.status_code}): {r.text}")
-    return r.json()
+    started = time.monotonic()
+    summary = worker_call("POST", "/garmin/ingest", json=payload, timeout=120)
+    print(f"Ingest took {time.monotonic() - started:.1f}s", file=sys.stderr, flush=True)
+    return summary
 
 
 def today_local() -> date:
@@ -194,7 +237,10 @@ def backfill_weigh_ins(since: date, dry_run: bool = False) -> None:
         line = f"{a}..{b}: {len(weigh_ins['entries'])} weigh-ins"
         if not dry_run:
             payload = {"userEmail": USER_EMAIL, "days": [], "activities": [], "weighIns": weigh_ins}
-            summary = post_ingest(payload).get("weighIns", {})
+            try:
+                summary = post_ingest(payload).get("weighIns", {})
+            except WorkerError as e:
+                sys.exit(f"{e}\nResume with: pull --weight-since {a}")
             line += (
                 f" → upserted {len(summary.get('upserted', []))},"
                 f" deleted {summary.get('deleted', 0)}, skipped {summary.get('skipped', 0)}"
@@ -211,6 +257,7 @@ def backfill_weigh_ins(since: date, dry_run: bool = False) -> None:
 def pull(days: int, dry_run: bool = False) -> None:
     garmin = login_from_store()
 
+    fetch_started = time.monotonic()
     today = today_local()
     day_payloads = []
     errors = []
@@ -259,6 +306,14 @@ def pull(days: int, dry_run: bool = False) -> None:
         payload["weighIns"] = fetch_weigh_ins(garmin, start, today.isoformat())
     except Exception as e:  # noqa: BLE001
         errors.append(f"weigh_ins {start}..{today}: {e}")
+    print(f"Garmin fetch took {time.monotonic() - fetch_started:.1f}s", file=sys.stderr, flush=True)
+
+    # Before posting, so they're never lost if the ingest then fails.
+    if errors:
+        print("Per-day fetch warnings (data will self-heal on the next run):", file=sys.stderr)
+        for line in errors:
+            print(f"  - {line}", file=sys.stderr)
+        sys.stderr.flush()
 
     if dry_run:
         print(json.dumps(payload, indent=2, default=str))
@@ -267,11 +322,6 @@ def pull(days: int, dry_run: bool = False) -> None:
 
         # Persist whatever got refreshed so the next run starts warm.
         put_stored_tokens(garmin.client.dumps())
-
-    if errors:
-        print("\nPer-day fetch warnings (data will self-heal on the next run):", file=sys.stderr)
-        for line in errors:
-            print(f"  - {line}", file=sys.stderr)
 
 
 def main() -> None:
@@ -294,12 +344,15 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if args.mode == "bootstrap":
-        bootstrap()
-    elif args.weight_since:
-        backfill_weigh_ins(args.weight_since, dry_run=args.dry_run)
-    else:
-        pull(max(1, args.days), dry_run=args.dry_run)
+    try:
+        if args.mode == "bootstrap":
+            bootstrap()
+        elif args.weight_since:
+            backfill_weigh_ins(args.weight_since, dry_run=args.dry_run)
+        else:
+            pull(max(1, args.days), dry_run=args.dry_run)
+    except WorkerError as e:
+        sys.exit(str(e))  # non-zero exit → GitHub failure email
 
 
 if __name__ == "__main__":
