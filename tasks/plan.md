@@ -32,19 +32,19 @@ Tasks 2 and 3 both depend only on Task 1, but they edit the same component in `T
 - [x] Task 2: "N g over" text on over-target macro meters
 
 ### Checkpoint: Macro meters
-- [ ] `npm run typecheck && npm test` green
-- [ ] Visual: protein/carbs/fat show blue, amber, and red on suitable days in light and dark mode
+- [x] `npm run typecheck && npm test` green
+- [x] Visual: protein/carbs/fat show blue, amber, and red on suitable days in light and dark mode
 
 ### Phase 2: Calorie bar
 - [x] Task 3: Calorie bar under the hero number, sharing `MeterBar`
 
 ### Checkpoint: Feature complete
-- [ ] `npm run typecheck && npm test` green
-- [ ] Visual check of all four bars, light and dark, on under/near/over days (spec §6)
+- [x] `npm run typecheck && npm test` green
+- [x] Visual check of all four bars, light and dark, on under/near/over days (spec §6)
 - [ ] Scott reviews before docs close-out
 
 ### Phase 3: Close-out
-- [ ] Task 4: Mark epic 7 built in spec + README
+- [x] Task 4: Mark epic 7 built in spec + README
 
 ## Risks and mitigations
 

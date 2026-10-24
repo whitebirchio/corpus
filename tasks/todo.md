@@ -16,7 +16,7 @@ Plan: [`tasks/plan.md`](plan.md). Spec: [`specs/07-macro-meters/SPEC.md`](../spe
 **Verification:**
 - [x] Tests pass: `npm test -w corpus-web`. The new `apps/web/test/meter.test.ts` covers 0, 0.899, 0.9, 1.0, 1.0001, a null target, and a 0 target.
 - [x] Build succeeds: `npm run typecheck`
-- [ ] Manual check: `npm run dev:ui -w corpus-web`. A macro over 90% is amber and one over 100% is red, in light and dark mode.
+- [x] Manual check: `npm run dev:ui -w corpus-web`. A macro over 90% is amber and one over 100% is red, in light and dark mode.
 
 **Dependencies:** None
 
@@ -39,7 +39,7 @@ Plan: [`tasks/plan.md`](plan.md). Spec: [`specs/07-macro-meters/SPEC.md`](../spe
 **Verification:**
 - [x] Tests pass: `npm test -w corpus-web`
 - [x] Build succeeds: `npm run typecheck`
-- [ ] Manual check: on an over day, the red macro shows the over-text and the others don't.
+- [x] Manual check: on an over day, the red macro shows the over-text and the others don't.
 
 **Dependencies:** Task 1
 
@@ -50,8 +50,8 @@ Plan: [`tasks/plan.md`](plan.md). Spec: [`specs/07-macro-meters/SPEC.md`](../spe
 **Estimated scope:** Small (1–2 files)
 
 ## Checkpoint: Macro meters
-- [ ] `npm run typecheck && npm test` green
-- [ ] Visual: protein/carbs/fat show blue, amber, and red on suitable days in light and dark mode
+- [x] `npm run typecheck && npm test` green
+- [x] Visual: protein/carbs/fat show blue, amber, and red on suitable days in light and dark mode (static render of the real CSS + markup; Chrome extension was offline, so no live dev:ui)
 
 ## Phase 2: Calorie bar
 
@@ -67,7 +67,7 @@ Plan: [`tasks/plan.md`](plan.md). Spec: [`specs/07-macro-meters/SPEC.md`](../spe
 **Verification:**
 - [x] Tests pass: `npm test -w corpus-web`
 - [x] Build succeeds: `npm run typecheck`
-- [ ] Manual check: `dev:ui`, with the calorie bar at under, near, and over in light and dark mode, and spacing that matches the macro meters.
+- [x] Manual check: `dev:ui`, with the calorie bar at under, near, and over in light and dark mode, and spacing that matches the macro meters.
 
 **Dependencies:** Task 1
 
@@ -78,8 +78,8 @@ Plan: [`tasks/plan.md`](plan.md). Spec: [`specs/07-macro-meters/SPEC.md`](../spe
 **Estimated scope:** Small (2 files)
 
 ## Checkpoint: Feature complete
-- [ ] `npm run typecheck && npm test` green (whole workspace, mirrors CI)
-- [ ] Visual check of all four bars, light and dark, on under/near/over days (spec §6)
+- [x] `npm run typecheck && npm test` green (whole workspace, mirrors CI)
+- [x] Visual check of all four bars, light and dark, on under/near/over days (spec §6) (static render of the real CSS + markup; Chrome extension was offline, so no live dev:ui)
 - [ ] Scott reviews, including the amber hue (spec §9), before close-out
 
 ## Phase 3: Close-out
@@ -89,10 +89,10 @@ Plan: [`tasks/plan.md`](plan.md). Spec: [`specs/07-macro-meters/SPEC.md`](../spe
 **Description:** Update the spec status line and the `specs/README.md` epic 7 entry from "designed, not built" to built, noting any deviations from the spec, such as a changed hue.
 
 **Acceptance criteria:**
-- [ ] The `specs/07-macro-meters/SPEC.md` status line and the `specs/README.md` entry both say built (with the date), and any deviations are recorded.
+- [x] The `specs/07-macro-meters/SPEC.md` status line and the `specs/README.md` entry both say built (with the date), and any deviations are recorded.
 
 **Verification:**
-- [ ] Manual check: the README link resolves, and the status reads correctly.
+- [x] Manual check: the README link resolves, and the status reads correctly.
 
 **Dependencies:** Task 3 and the Feature-complete checkpoint
 

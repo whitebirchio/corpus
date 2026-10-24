@@ -1,6 +1,6 @@
 # Epic 7 — Macro meters: calorie bar + status colors
 
-**Status:** designed 2026-10-24, not built. Small PWA-only presentation change; no core, schema, or MCP surface changes.
+**Status:** built 2026-10-24 (branch `epic-7-macro-meters`). Small PWA-only presentation change; no core, schema, or MCP surface changes. Built as specified, with no deviations. `meterStatus`/`gramsOver` live in `apps/web/src/format.ts`, and a shared `MeterBar` renders all four bars. Verified with unit tests plus a static light/dark render of the under, near, and over states. The amber hue (§9) is still open for review: in light mode `#a86a00` reads more mustard than bright amber.
 
 ## 1. Objective
 
