@@ -4,6 +4,11 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-06-01",
   "compatibility_flags": ["nodejs_compat"],
+  // Persisted Workers Logs (free tier: 200k events/day, 3-day retention).
+  // Without this, an exception like the 2026-10-24 ingest 1101 leaves no trace.
+  "observability": {
+    "enabled": true,
+  },
   // McpAgent sessions live in a SQLite-backed Durable Object (free tier OK).
   "migrations": [
     {

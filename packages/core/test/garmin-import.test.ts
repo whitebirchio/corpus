@@ -4,6 +4,7 @@ import type { Db, UserCtx } from "../src/db/client.js";
 import { bodyMeasurements, workoutBlocks, workoutSessions } from "../src/db/schema.js";
 import {
   garminDayToCheckin,
+  garminSyncStatus,
   garminWeighInToMeasurement,
   importGarminData,
 } from "../src/import/garmin.js";
@@ -590,5 +591,34 @@ describe("importGarminData — weigh-in delete reconciliation", () => {
       .from(bodyMeasurements)
       .where(eq(bodyMeasurements.userId, other.userId));
     expect(otherRows).toHaveLength(1);
+  });
+});
+
+describe("garminSyncStatus", () => {
+  const now = new Date("2026-10-24T12:00:00.000Z");
+
+  it("is fresh within the staleness window", () => {
+    expect(garminSyncStatus("2026-10-24T03:13:45.000Z", now)).toEqual({
+      lastIngestAt: "2026-10-24T03:13:45.000Z",
+      hoursSince: 8.8,
+      stale: false,
+    });
+  });
+
+  it("is stale once the last successful ingest is over 12 hours old", () => {
+    // The Oct 16 → Oct 23 outage: GitHub silently stopped scheduling the job.
+    expect(garminSyncStatus("2026-10-16T14:06:25.000Z", now)).toMatchObject({
+      hoursSince: 189.9,
+      stale: true,
+    });
+  });
+
+  it("is stale when no ingest has ever been recorded, or the record is unreadable", () => {
+    expect(garminSyncStatus(null, now)).toEqual({
+      lastIngestAt: null,
+      hoursSince: null,
+      stale: true,
+    });
+    expect(garminSyncStatus("not a date", now)).toMatchObject({ hoursSince: null, stale: true });
   });
 });

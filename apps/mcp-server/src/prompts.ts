@@ -35,7 +35,7 @@ export function registerPrompts(server: McpServer): void {
       userMessage(`
 Let's do my morning check-in${forDate(date)}.
 
-1. First call \`get_daily_summary\`${forDate(date)} to see what the overnight Garmin sync already captured (sleep, HRV, resting HR, steps, body battery, training readiness, and my latest weigh-in in \`latestWeight\`) AND what I have planned today (\`todaysPlan\`). Do NOT ask me for numbers it already has.
+1. First call \`get_daily_summary\`${forDate(date)} to see what the overnight Garmin sync already captured (sleep, HRV, resting HR, steps, body battery, training readiness, and my latest weigh-in in \`latestWeight\`) AND what I have planned today (\`todaysPlan\`). Do NOT ask me for numbers it already has. If \`garminSync.stale\` is true, tell me up front that the Garmin sync looks stalled (last success \`garminSync.lastIngestAt\`), so the sleep/HRV/weight numbers may be old — then carry on with what's there.
 2. Ask me only for what's subjective: how rested I feel (energy 1–5) and any soreness. Do NOT ask for my weight — I enter weigh-ins in Garmin Connect and they sync automatically.
 3. Call \`log_daily_checkin\` with just those fields. It upserts by date, so it won't clobber the Garmin-measured fields. Only pass a weight if I volunteer one unprompted (e.g. because the Garmin sync is down).
 4. Echo back a one-line recap of the day's recovery picture — including my latest weight (with its date if \`latestWeight.measuredOn\` isn't today, noting today's weigh-in will arrive with the next Garmin sync) — and flag anything notable: poor sleep, low HRV or training readiness, or an elevated resting HR.

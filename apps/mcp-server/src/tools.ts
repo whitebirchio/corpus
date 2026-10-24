@@ -11,6 +11,7 @@ import {
   formatDuration,
   formatMass,
   formatPace,
+  garminSyncStatus,
   getActiveGoalsWithMilestones,
   getTrainingPlan,
   getTrainingPlanShape,
@@ -88,6 +89,7 @@ import {
   type UserCtx,
 } from "@corpus/core";
 import { queryData, withUserDb } from "./db.js";
+import { LAST_INGEST_KEY_PREFIX } from "./garmin.js";
 import { lookupBarcodeExternal, searchExternalFoods } from "./nutrition.js";
 import { renderProfile } from "./profile.js";
 import { renderTrainingProfile } from "./trainingProfile.js";
@@ -793,6 +795,9 @@ export function registerTools(
         "whether it's been done), active goals with milestones, current regimen, standing insights, and today's observations. " +
         "latestWeight is the newest weigh-in with its local date (measuredOn) and source — weigh-ins sync from Garmin " +
         "Connect (source garmin_export), so if measuredOn isn't today, today's hasn't synced yet. " +
+        "garminSync reports when the Garmin sync last succeeded; if garminSync.stale is true, tell the user the Garmin " +
+        "sync appears stalled (since lastIngestAt) and that recent sleep/HRV/weigh-ins may be missing — don't silently " +
+        "present old numbers as current. " +
         "Call this FIRST in any daily conversation. For the full prescription of todaysPlan, call get_training_plan.",
       inputSchema: { date: z.iso.date().optional() },
     },
@@ -800,8 +805,13 @@ export function registerTools(
       try {
         const { latestWeighIn, ...summary } = await run((db, c) => getDailySummary(db, c, date));
         const p = getProps();
+        // Sync health is best-effort: a KV hiccup must never break the summary.
+        const lastIngestAt = await env.OAUTH_KV.get(
+          `${LAST_INGEST_KEY_PREFIX}${p.email.trim().toLowerCase()}`,
+        ).catch(() => null);
         return ok({
           ...summary,
+          garminSync: garminSyncStatus(lastIngestAt),
           latestWeight: latestWeighIn
             ? {
                 kg: latestWeighIn.weightKg,
