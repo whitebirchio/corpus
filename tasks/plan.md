@@ -38,27 +38,27 @@ Tasks 2–4 and 5–6 are independent chains. Task 6 should still not ship befor
 - [x] Task 3: Core: window-scoped delete reconciliation — done 2026-10-23 (window keyed on Garmin calendarDate)
 - [x] Task 4: Sync job forwards the trailing-window weigh-ins — done 2026-10-23 (live post-deploy run pending)
 
-### Checkpoint A: a weigh-in entered in Garmin reaches Corpus
-- [ ] `npm run typecheck && npm test` green
-- [ ] Local `sync.py pull --days 3` against `wrangler dev` (or prod after deploy) reports `weighIns.upserted ≥ 1`
-- [ ] Human review before touching the conversational surface
+### Checkpoint A: a weigh-in entered in Garmin reaches Corpus ✅
+- [x] `npm run typecheck && npm test` green
+- [x] Prod pulls after deploy report `weighIns.upserted ≥ 1` with `deleted: 0` (scheduled 10-24 03:13Z; local `--days 10` / `--days 2`)
+- [x] Human review before touching the conversational surface (PR #2 reviewed and merged)
 
 ### Phase 2: Stop asking
 - [x] Task 5: Daily summary exposes the latest weigh-in's date and source — done 2026-10-23
-- [x] Task 6: `morning_checkin` stops asking for weight; `log_daily_checkin` de-emphasizes it — done 2026-10-23 (live check pending deploy)
+- [x] Task 6: `morning_checkin` stops asking for weight; `log_daily_checkin` de-emphasizes it — done 2026-10-23, live-checked 2026-10-24
 
-### Checkpoint B: one-entry morning
-- [ ] Tests and typecheck green
-- [ ] In Claude, against the local worker or after deploy: `morning_checkin` reports the synced weight and never asks for one
+### Checkpoint B: one-entry morning ✅
+- [x] Tests and typecheck green
+- [x] After deploy: `morning_checkin` reports the synced weight and never asks for one (Scott, 2026-10-24)
 
 ### Phase 3: History and records
 - [x] Task 7: `--weight-since` backfill, `weight_since` workflow input, SETUP docs — done 2026-10-23
-- [x] Task 8: Spec bookkeeping, deploy, and a one-time backfill run (part manual) — bookkeeping done 2026-10-23; merge + backfill are Scott's
+- [x] Task 8: Spec bookkeeping, deploy, and a one-time backfill run (part manual) — done; backfill run locally 2026-10-23 (159 readings)
 
-### Checkpoint C: complete
-- [ ] All spec §1 acceptance criteria met (see todo.md)
-- [ ] Backfill re-run leaves the row count unchanged
-- [ ] Ready for merge to main (CI deploys)
+### Checkpoint C: complete ✅ (closed 2026-10-24)
+- [x] All spec §1 acceptance criteria met (see todo.md; the live edit/delete propagation hasn't yet been seen in a sync summary, and is covered by tests)
+- [x] Overlapping re-runs leave the row count exact (159 after the backfill, then 160 with one new reading)
+- [x] Merged to main and deployed (PR #2, plus post-launch hardening in PR #3)
 
 ## Risks and mitigations
 

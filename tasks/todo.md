@@ -75,7 +75,7 @@ Plan: [tasks/plan.md](plan.md) · Spec: [specs/06-garmin-weigh-ins/SPEC.md](../s
 **Verification:**
 - [x] `python -m py_compile apps/garmin-sync/sync.py`
 - [x] Stub harness (Garmin and requests stubbed, using the live `get_weigh_ins` response from Task 1): 11/11 checks. These cover flattening, the window bounds for 1 and 7 days, failure and odd shapes omitting the key, a real empty result sent as `[]`, and dry-run making no POST or PUT
-- [ ] Manual (Scott, **after deploy**: prod doesn't accept `weighIns` until this branch ships): a real `pull --days 3` prints `weighIns.upserted` ≥ 1, and a second run shows the same rows with `deleted: 0`
+- [x] Manual (after deploy): the scheduled run on 10-24 03:13Z upserted Oct 23's weigh-in with `deleted: 0`. The local `pull --days 10` (10 upserted) and `pull --days 2` (2 upserted, including Oct 24's) both reported `deleted: 0`, and the overlapping re-runs created no duplicates
 
 **Dependencies:** Tasks 1, 2, 3 (the server must accept and reconcile the key before the job sends it)
 **Files likely touched:** `apps/garmin-sync/sync.py`, `apps/mcp-server/src/garmin.ts`
@@ -83,10 +83,10 @@ Plan: [tasks/plan.md](plan.md) · Spec: [specs/06-garmin-weigh-ins/SPEC.md](../s
 
 ---
 
-## Checkpoint A: a weigh-in entered in Garmin reaches Corpus
-- [ ] `npm run typecheck && npm test` green
-- [ ] Task 4's manual run confirmed
-- [ ] Human review before Phase 2
+## Checkpoint A: a weigh-in entered in Garmin reaches Corpus ✅
+- [x] `npm run typecheck && npm test` green
+- [x] Task 4's manual run confirmed (see above)
+- [x] Human review before Phase 2 (the plan was approved via `/build auto`; Scott reviewed and merged PR #2)
 
 ---
 
@@ -123,7 +123,7 @@ Also update the `log_daily_checkin` description: weight comes from Garmin, so pa
 
 **Verification:**
 - [x] Build: `npm run typecheck`
-- [ ] Manual (Scott, **after deploy**): in Claude, run `morning_checkin`. It reports the synced weight with its date and does not ask for weight
+- [x] Manual (after deploy, 2026-10-24): Scott ran `morning_checkin`, which reported the synced weight without asking. No `checkin` weigh-in was logged that day
 
 **Dependencies:** Task 5. Ship together with or after Phase 1 is deployed (see plan risks)
 **Files likely touched:** `apps/mcp-server/src/prompts.ts`, `apps/mcp-server/src/tools.ts`, `packages/core/src/schemas/inputs.ts`
@@ -131,9 +131,9 @@ Also update the `log_daily_checkin` description: weight comes from Garmin, so pa
 
 ---
 
-## Checkpoint B: one-entry morning
+## Checkpoint B: one-entry morning ✅
 - [x] `npm run typecheck && npm test` green (175 core + 7)
-- [ ] Task 6's manual check confirmed (after deploy)
+- [x] Task 6's manual check confirmed (2026-10-24)
 
 ---
 
@@ -158,7 +158,7 @@ Also update the `log_daily_checkin` description: weight comes from Garmin, so pa
 
 ---
 
-## Task 8: Spec bookkeeping, deploy, and a one-time backfill run
+## Task 8: Spec bookkeeping, deploy, and a one-time backfill run ✅
 
 **Description:**
 - Append the epic-6 note to SPEC 01 §8.4.2.
@@ -168,11 +168,11 @@ Also update the `log_daily_checkin` description: weight comes from Garmin, so pa
 
 **Acceptance criteria:**
 - [x] Spec history updated per the append-only convention: SPEC 01 §8.4.2 addendum, `IMPLEMENTATION.md`, README entry marked built, SPEC 06 status
-- [ ] Backfill run: the `query_data` count of `body_measurements WHERE source = 'garmin_export'` roughly matches Garmin's history, and an immediate re-run leaves it unchanged — **Scott, after merge**
+- [x] Backfill run (local, 2026-10-23, `--weight-since 2010-01-01`): 69 chunks, 159 weigh-ins (Jun 2023 → Oct 23), `deleted 0` / `skipped 0` throughout. `query_data` showed exactly 159 `garmin_export` rows. The backfill overlapped the earlier `--days 10` pull without duplicating, and the next day's `--days 2` pull brought the count to exactly 160 (one new reading). That stands in for a separate immediate re-run
 
 **Verification:**
 - [x] `npm run typecheck && npm test` (175 core + 7, typecheck clean)
-- [ ] Manual (Scott): run the `garmin-sync` workflow with `weight_since` set (or run it locally), then query the count twice
+- [x] Manual: backfill run locally (GitHub dispatch runs were stuck at the time; see IMPLEMENTATION.md, "Post-launch hardening") and the count queried
 
 **Dependencies:** Tasks 1–7
 **Files likely touched:** `specs/01-initial-platform/SPEC.md`, `specs/06-garmin-weigh-ins/IMPLEMENTATION.md`, `specs/README.md`
@@ -180,12 +180,10 @@ Also update the `log_daily_checkin` description: weight comes from Garmin, so pa
 
 ---
 
-## Checkpoint C: complete
+## Checkpoint C: complete ✅ (closed 2026-10-24)
 
-The code side of each item is covered by tests or the harness. The live confirmation of each happens after merge (IMPLEMENTATION.md, "Remaining manual steps").
-
-- [ ] Weigh-in entered in Garmin appears in Corpus after the next sync (≤4h), in kg at its real time (tested ✓; live pending)
-- [ ] An edit in Garmin updates the row, and a delete in Garmin removes it on the next covering run (tested ✓; live pending)
-- [ ] Re-runs (scheduled or backfill) create no duplicates (tested ✓; live pending)
-- [ ] `morning_checkin` never asks for weight, and `log_daily_checkin.weight` still works as a fallback (prompt text ✓; live pending)
-- [x] Ready for review and merge
+- [x] Weigh-in entered in Garmin appears in Corpus after the next sync, in kg at its real time. Live: Oct 24's 08:13 ET reading became `latestWeight` (155.6 lb, `garmin_export`). Every overlapping manual/Garmin day matched Scott's check-in value to ≤0.002 kg
+- [x] An edit in Garmin updates the row, and a delete in Garmin removes it on the next covering run. Covered by PGlite tests (`garmin-import.test.ts`: in-place edit, window-scoped delete, calendarDate bounds, other sources untouched). Scott reported his checks good when closing the epic. As of the close (12:49Z), no sync had yet run after an edit/delete, so `deleted ≥ 1` has not been observed in a live summary
+- [x] Re-runs (scheduled or backfill) create no duplicates. Live: overlapping pulls and the backfill reconciled to exact counts (159, then 160)
+- [x] `morning_checkin` never asks for weight, and `log_daily_checkin.weight` still works as a fallback. Live check by Scott (Task 6). The fallback is unchanged and accepted by the schema
+- [x] Ready for review and merge (PRs #2 and #3 merged)
