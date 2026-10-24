@@ -16,6 +16,7 @@
   --series-1-track: #cde2fb; /* blue 100 — meter track, same ramp */
   --accent: #2a78d6;
   --danger: #d03b3b;
+  --warn: #a86a00; /* amber — 3.36:1 vs --series-1-track */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -33,6 +34,7 @@
     --series-1-track: #0d366b; /* blue 700 */
     --accent: #3987e5;
     --danger: #e66767;
+    --warn: #e8a33a; /* 5.54:1 vs dark track */
   }
 }
 
@@ -247,6 +249,15 @@ body {
   border-radius: 4px;
   background: var(--series-1);
   transition: width 0.25s ease-out;
+}
+
+/* Status vs. the daily max: amber at ≥90% of target, red once over. */
+.meter .fill.near {
+  background: var(--warn);
+}
+
+.meter .fill.over {
+  background: var(--danger);
 }
 
 /* --- meal list ---------------------------------------------------------------- */
