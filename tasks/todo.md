@@ -60,13 +60,13 @@ Plan: [`tasks/plan.md`](plan.md). Spec: [`specs/07-macro-meters/SPEC.md`](../spe
 **Description:** Pull the track and fill markup out of `Meter` into a `MeterBar({ value, target })` component. `Meter` keeps its head row and renders `MeterBar`, and a bare `MeterBar` for calories renders directly under the hero caption, above Protein, with the same status colors.
 
 **Acceptance criteria:**
-- [ ] When `day.targets` exists, a full-width calorie bar renders between the hero caption and the Protein meter. The hero number and its "N left / N over" caption are unchanged (AC1).
-- [ ] The calorie bar follows the same under/near/over rule through `meterStatus` and clamps at 100% (AC2, AC4).
-- [ ] There's no calorie bar when targets are null or the calorie target is ≤ 0 (AC6), and past days via ‹ › follow the same rule (AC8).
+- [x] When `day.targets` exists, a full-width calorie bar renders between the hero caption and the Protein meter. The hero number and its "N left / N over" caption are unchanged (AC1).
+- [x] The calorie bar follows the same under/near/over rule through `meterStatus` and clamps at 100% (AC2, AC4).
+- [x] There's no calorie bar when targets are null or the calorie target is ≤ 0 (AC6), and past days via ‹ › follow the same rule (AC8).
 
 **Verification:**
-- [ ] Tests pass: `npm test -w corpus-web`
-- [ ] Build succeeds: `npm run typecheck`
+- [x] Tests pass: `npm test -w corpus-web`
+- [x] Build succeeds: `npm run typecheck`
 - [ ] Manual check: `dev:ui`, with the calorie bar at under, near, and over in light and dark mode, and spacing that matches the macro meters.
 
 **Dependencies:** Task 1

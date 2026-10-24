@@ -82,6 +82,11 @@ export function Today({ me }: { me: MeResponse }) {
                 ? `of ${fmtInt(day.targets.calories)} kcal target · ${remainingLabel(day.totals.calories, day.targets.calories)}`
                 : "kcal eaten — no target set"}
             </div>
+            {day.targets ? (
+              <div className="meter">
+                <MeterBar value={day.totals.calories} target={day.targets.calories} />
+              </div>
+            ) : null}
             <Meter
               name="Protein"
               value={day.totals.proteinG}
@@ -336,10 +341,20 @@ function remainingLabel(eaten: number, target: number): string {
   return diff >= 0 ? `${fmtInt(diff)} left` : `${fmtInt(-diff)} over`;
 }
 
-function Meter({ name, value, target }: { name: string; value: number; target: number | null }) {
-  const pct = target && target > 0 ? Math.min(100, (value / target) * 100) : 0;
+/** Track + fill, colored by status vs. the daily max; nothing without a target. */
+function MeterBar({ value, target }: { value: number; target: number | null }) {
   const status = meterStatus(value, target);
-  const over = status === "over" ? gramsOver(value, target) : null;
+  if (!status) return null;
+  const pct = Math.min(100, (value / target!) * 100);
+  return (
+    <div className="track">
+      <div className={`fill ${status}`} style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
+function Meter({ name, value, target }: { name: string; value: number; target: number | null }) {
+  const over = meterStatus(value, target) === "over" ? gramsOver(value, target) : null;
   return (
     <div className="meter">
       <div className="meter-head">
@@ -350,11 +365,7 @@ function Meter({ name, value, target }: { name: string; value: number; target: n
           {over ? ` · ${over}` : ""}
         </span>
       </div>
-      {status ? (
-        <div className="track">
-          <div className={`fill ${status}`} style={{ width: `${pct}%` }} />
-        </div>
-      ) : null}
+      <MeterBar value={value} target={target} />
     </div>
   );
 }

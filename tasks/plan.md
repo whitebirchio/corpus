@@ -36,7 +36,7 @@ Tasks 2 and 3 both depend only on Task 1, but they edit the same component in `T
 - [ ] Visual: protein/carbs/fat show blue, amber, and red on suitable days in light and dark mode
 
 ### Phase 2: Calorie bar
-- [ ] Task 3: Calorie bar under the hero number, sharing `MeterBar`
+- [x] Task 3: Calorie bar under the hero number, sharing `MeterBar`
 
 ### Checkpoint: Feature complete
 - [ ] `npm run typecheck && npm test` green
