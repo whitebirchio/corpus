@@ -28,6 +28,16 @@ export function meterStatus(value: number, target: number | null): MeterStatus |
   return ratio >= WARN_RATIO ? "near" : "under";
 }
 
+/**
+ * "22g over" when intake is past target, so a red meter isn't color-only.
+ * Null at/under target, or when the overage rounds to 0g.
+ */
+export function gramsOver(value: number, target: number | null): string | null {
+  if (target == null || target <= 0) return null;
+  const over = Math.round(value - target);
+  return over > 0 ? `${fmtGrams(over)} over` : null;
+}
+
 /** Units whose values carry a meaningful fractional part (e.g. 180.4 lb, 18.5%). */
 const DECIMAL_UNITS = new Set(["lb", "kg", "mi", "km", "%", "h"]);
 

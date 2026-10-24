@@ -16,6 +16,7 @@ import {
   fmtInt,
   fmtMetric,
   fmtTime,
+  gramsOver,
   MEAL_TYPE_LABEL,
   meterStatus,
 } from "../format.js";
@@ -338,6 +339,7 @@ function remainingLabel(eaten: number, target: number): string {
 function Meter({ name, value, target }: { name: string; value: number; target: number | null }) {
   const pct = target && target > 0 ? Math.min(100, (value / target) * 100) : 0;
   const status = meterStatus(value, target);
+  const over = status === "over" ? gramsOver(value, target) : null;
   return (
     <div className="meter">
       <div className="meter-head">
@@ -345,6 +347,7 @@ function Meter({ name, value, target }: { name: string; value: number; target: n
         <span className="nums">
           <strong>{fmtGrams(value)}</strong>
           {target ? ` / ${fmtGrams(target)}` : ""}
+          {over ? ` · ${over}` : ""}
         </span>
       </div>
       {status ? (

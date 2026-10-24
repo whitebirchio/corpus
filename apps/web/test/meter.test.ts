@@ -1,5 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { meterStatus, WARN_RATIO } from "../src/format.js";
+import { gramsOver, meterStatus, WARN_RATIO } from "../src/format.js";
+
+describe("gramsOver", () => {
+  it("says how far over the target", () => {
+    expect(gramsOver(182, 160)).toBe("22g over");
+  });
+
+  it("is silent at or under the target", () => {
+    expect(gramsOver(160, 160)).toBeNull();
+    expect(gramsOver(150, 160)).toBeNull();
+  });
+
+  it("is silent when the overage rounds to zero", () => {
+    expect(gramsOver(160.3, 160)).toBeNull();
+  });
+
+  it("is silent without a target", () => {
+    expect(gramsOver(182, null)).toBeNull();
+  });
+});
 
 describe("meterStatus", () => {
   it("is under with nothing eaten", () => {

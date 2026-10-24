@@ -33,12 +33,12 @@ Plan: [`tasks/plan.md`](plan.md). Spec: [`specs/07-macro-meters/SPEC.md`](../spe
 **Description:** When a macro meter is `over`, its numbers line adds how far over it is (e.g. `182g / 160g · 22g over`), so "over" isn't conveyed by color alone.
 
 **Acceptance criteria:**
-- [ ] For `over` meters, the numbers line reads `<value> / <target> · <diff> over`, formatted with `fmtGrams` (AC5).
-- [ ] The suffix is hidden when the rounded overage is 0 (float edge), and it never appears for `under` or `near`.
+- [x] For `over` meters, the numbers line reads `<value> / <target> · <diff> over`, formatted with `fmtGrams` (AC5).
+- [x] The suffix is hidden when the rounded overage is 0 (float edge), and it never appears for `under` or `near`.
 
 **Verification:**
-- [ ] Tests pass: `npm test -w corpus-web`
-- [ ] Build succeeds: `npm run typecheck`
+- [x] Tests pass: `npm test -w corpus-web`
+- [x] Build succeeds: `npm run typecheck`
 - [ ] Manual check: on an over day, the red macro shows the over-text and the others don't.
 
 **Dependencies:** Task 1
