@@ -28,7 +28,7 @@ Tasks 2 and 3 both depend only on Task 1, but they edit the same component in `T
 ## Task list
 
 ### Phase 1: Status colors on the existing macro meters
-- [ ] Task 1: `meterStatus` + tests + colored protein/carbs/fat fills
+- [x] Task 1: `meterStatus` + tests + colored protein/carbs/fat fills
 - [ ] Task 2: "N g over" text on over-target macro meters
 
 ### Checkpoint: Macro meters

@@ -9,13 +9,13 @@ Plan: [`tasks/plan.md`](plan.md). Spec: [`specs/07-macro-meters/SPEC.md`](../spe
 **Description:** Add the pure status function and the single threshold constant. Wire it into the existing `Meter` so the protein, carbs and fat fills turn amber at ≥ 90% of target and red above 100%, using a new `--warn` token plus the existing `--danger`.
 
 **Acceptance criteria:**
-- [ ] `meterStatus(value, target)` in `apps/web/src/format.ts` returns `"under"` below 0.9, `"near"` for 0.9 ≤ r ≤ 1.0, `"over"` above 1.0, and `null` when the target is null or ≤ 0. `WARN_RATIO = 0.9` is exported and is the only place the threshold lives (AC2, AC3).
-- [ ] `Meter`'s `.fill` gets the status as a class. `styles.css` defines `--warn` in light (`#a86a00`) and dark (`#e8a33a`) next to `--danger`, plus `.meter .fill.near` and `.meter .fill.over` rules. There's no hex in TSX, and fill width still clamps at 100% (AC4, AC7).
-- [ ] Meters with no target or a target ≤ 0 still render without a track (AC6).
+- [x] `meterStatus(value, target)` in `apps/web/src/format.ts` returns `"under"` below 0.9, `"near"` for 0.9 ≤ r ≤ 1.0, `"over"` above 1.0, and `null` when the target is null or ≤ 0. `WARN_RATIO = 0.9` is exported and is the only place the threshold lives (AC2, AC3).
+- [x] `Meter`'s `.fill` gets the status as a class. `styles.css` defines `--warn` in light (`#a86a00`) and dark (`#e8a33a`) next to `--danger`, plus `.meter .fill.near` and `.meter .fill.over` rules. There's no hex in TSX, and fill width still clamps at 100% (AC4, AC7).
+- [x] Meters with no target or a target ≤ 0 still render without a track (AC6).
 
 **Verification:**
-- [ ] Tests pass: `npm test -w corpus-web`. The new `apps/web/test/meter.test.ts` covers 0, 0.899, 0.9, 1.0, 1.0001, a null target, and a 0 target.
-- [ ] Build succeeds: `npm run typecheck`
+- [x] Tests pass: `npm test -w corpus-web`. The new `apps/web/test/meter.test.ts` covers 0, 0.899, 0.9, 1.0, 1.0001, a null target, and a 0 target.
+- [x] Build succeeds: `npm run typecheck`
 - [ ] Manual check: `npm run dev:ui -w corpus-web`. A macro over 90% is amber and one over 100% is red, in light and dark mode.
 
 **Dependencies:** None

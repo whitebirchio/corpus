@@ -12,6 +12,22 @@ export function fmtGrams(n: number): string {
   return `${fmtInt(n)}g`;
 }
 
+/** Share of a daily target at which a meter switches to its warning color. */
+export const WARN_RATIO = 0.9;
+
+export type MeterStatus = "under" | "near" | "over";
+
+/**
+ * Where intake sits against a daily max: under 90%, near (90–100%, landing
+ * exactly on target included), or over. Null when there's no usable target.
+ */
+export function meterStatus(value: number, target: number | null): MeterStatus | null {
+  if (target == null || target <= 0) return null;
+  const ratio = value / target;
+  if (ratio > 1) return "over";
+  return ratio >= WARN_RATIO ? "near" : "under";
+}
+
 /** Units whose values carry a meaningful fractional part (e.g. 180.4 lb, 18.5%). */
 const DECIMAL_UNITS = new Set(["lb", "kg", "mi", "km", "%", "h"]);
 

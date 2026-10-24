@@ -17,6 +17,7 @@ import {
   fmtMetric,
   fmtTime,
   MEAL_TYPE_LABEL,
+  meterStatus,
 } from "../format.js";
 import { useData } from "../useData.js";
 
@@ -336,6 +337,7 @@ function remainingLabel(eaten: number, target: number): string {
 
 function Meter({ name, value, target }: { name: string; value: number; target: number | null }) {
   const pct = target && target > 0 ? Math.min(100, (value / target) * 100) : 0;
+  const status = meterStatus(value, target);
   return (
     <div className="meter">
       <div className="meter-head">
@@ -345,9 +347,9 @@ function Meter({ name, value, target }: { name: string; value: number; target: n
           {target ? ` / ${fmtGrams(target)}` : ""}
         </span>
       </div>
-      {target ? (
+      {status ? (
         <div className="track">
-          <div className="fill" style={{ width: `${pct}%` }} />
+          <div className={`fill ${status}`} style={{ width: `${pct}%` }} />
         </div>
       ) : null}
     </div>
