@@ -65,4 +65,11 @@ Tests live in `packages/core/test/` and run against **PGlite** (in-memory Postgr
 
 ## Specs & docs
 
-`specs/` is the append-only design history, one subdirectory per epic (`NN-slug`), ordered by when the work shipped. `specs/01-initial-platform/SPEC.md` is the authoritative reference for the data model (§5), MCP surface (§6), auth (§7), flows (§8), and idempotency (§5.9) — code comments cite it by section. `specs/README.md` indexes epics and holds the backlog. `docs/` is evergreen how-to (setup, dev workflow); don't put design rationale there.
+New work follows the agent-skills workflow as-is (`/spec` → `/plan` → `/build` → `/review` → `/ship`); the skills own the format, approval gates, and lifecycle of each artifact. In this repo that means:
+
+- **Spec:** `SPEC.md` at the repo root — the living spec for the current piece of work.
+- **Plan and tasks:** `tasks/plan.md` and `tasks/todo.md`.
+- **Architecture decisions:** ADRs in `docs/decisions/`.
+- **Ideas not yet specced:** GitHub Issues. (Task lists for specced work still go in `tasks/todo.md`.)
+
+`specs/` is a **frozen archive** of epics 1–7, written before adopting agent-skills. Don't add to it, edit it, or renumber it — code comments cite it by path and section (e.g. `specs/01-initial-platform/SPEC.md` §5 data model, §6 MCP surface, §7 auth, §8 flows, §5.9 idempotency). For the current data model, `packages/core/src/db/schema.ts` is the source of truth; the archived specs record the original rationale. `docs/` holds evergreen how-to (setup, dev workflow) plus the ADRs.

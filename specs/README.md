@@ -1,8 +1,8 @@
-# Corpus specs — epic-by-epic design history
+# Corpus specs — archive (epics 1–7)
 
-Each subdirectory here is one major chunk of work (an "epic"), numbered in the order it was woven into the system. A subdirectory owns its own `SPEC.md` (and any supporting design docs an epic later needs) — the record of what was decided and why for that chunk of work, not a living document that gets silently rewritten as understanding changes.
+**Frozen.** These are the specs for epics 1–7, written before the project adopted the agent-skills workflow. Nothing new goes here, and existing files aren't edited or renumbered, because code comments cite them by path and section.
 
-This is different from [`docs/`](../docs/): `docs/` is evergreen how-to (one-time account setup, local dev workflow) that stays current; `specs/` is an append-only historical record, one entry per epic.
+New work uses the agent-skills workflow instead: a living `SPEC.md` at the repo root, `tasks/plan.md` + `tasks/todo.md`, and ADRs in [`docs/decisions/`](../docs/). See the "Specs & docs" section of [`CLAUDE.md`](../CLAUDE.md).
 
 ## Epics
 
@@ -14,10 +14,6 @@ This is different from [`docs/`](../docs/): `docs/` is evergreen how-to (one-tim
 6. [Garmin weigh-ins](06-garmin-weigh-ins/SPEC.md) — morning weigh-ins entered in Garmin Connect sync into `body_measurements` (`garmin_export`, real timestamps, window-scoped delete reconciliation), with a one-time full-history backfill; the `morning_checkin` prompt stops asking for weight, so it's entered once. Built 2026-10-23, shipped and closed 2026-10-24: 159 historical weigh-ins backfilled (Jun 2023 →), with post-launch sync hardening (retries, Workers Logs, a `garminSync` staleness signal, crons moved off the top of the hour). See [implementation notes](06-garmin-weigh-ins/IMPLEMENTATION.md) for deviations, the hardening, and follow-ups.
 7. [Macro meters](07-macro-meters/SPEC.md) — PWA Today view: a calorie progress bar under the hero number, plus status colors on all four meters (blue under 90% of target, amber 90–100%, red when over; every target treated as a max, protein included), with "N g over" text so red isn't the only cue. Shipped and closed 2026-10-24 (PR #5); Scott confirmed it live and kept the amber hue.
 
-## Backlog — not yet scoped into an epic
+## Backlog
 
-Carried over from epic 1's old Phase 3/4 roadmap. These become their own epic (or fold into an existing one) once someone actually starts designing them:
-
-- **Upload-ergonomics pass** — presigned-URL upload is clunky from a phone; needs a tiny authenticated upload page or MCP file passthrough (if/when Claude clients support it).
-- **Scheduled proactive briefings** — Workers cron for daily/weekly check-ins, needs a push channel (e.g. email) since Corpus has no notification surface today.
-- **Second user (wife) onboarding** — add her email to the OAuth allowlist; RLS already keeps data separate, so this is mostly just doing it.
+The backlog that used to live here moved to [GitHub Issues](https://github.com/whitebirchio/corpus/issues) (upload ergonomics #7, proactive briefings #8). Second-user onboarding was dropped from the list: a second address was added to `ALLOWED_EMAILS` in both workers on 2026-08-17.
