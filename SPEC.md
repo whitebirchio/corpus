@@ -15,9 +15,9 @@ Audience: Scott and future agent sessions. The test of success: an agent asking 
 
 Each ADR's `Date` is when the decision was actually made, taken from the spec text or the git date the spec was added. `Status` reflects what happened later, so a decision reversed in a later epic is `Superseded by ADR-NNN`. Each ADR ends with a provenance line: `Backfilled 2026-10-24 from specs/NN-slug/SPEC.md §2 #N`. Alternatives come only from what the specs recorded; nothing is invented after the fact.
 
-### ADR shortlist (for Scott to trim)
+### ADRs to write
 
-These are 27 candidates, numbered in decision order. **Bold** = cut candidates (low reversal cost, or already clear from the code).
+All 27 are approved (Scott, 2026-10-25), numbered in decision order. The bold rows were offered as cut candidates and kept.
 
 | ADR | Date | Decision | Source |
 |---|---|---|---|
@@ -133,18 +133,23 @@ No new automated tests; this is docs and comments. Verification:
 ## Success Criteria
 
 1. `docs/decisions/` holds the approved ADRs plus an index, each in the template with an honest date, status and provenance.
-2. Zero references to `specs/` remain in code, CI, or docs.
+2. Zero references to `specs/` remain in code, CI, or docs. The one exception is the ADR source lines, which cite the archive by tag, e.g. `specs/02-pwa-client/SPEC.md §2 #7 @ specs-archive`.
 3. `specs/` is deleted, and the `specs-archive` tag on origin points at a commit that still contains it.
 4. Each still-open follow-up is a GitHub issue, and each resolved one is noted as such in the PR description.
 5. Typecheck, core tests and the sync.py tests pass.
 6. `CLAUDE.md` no longer describes `specs/` as a frozen archive; it says ADRs hold the history.
 
+## Resolved (Scott, 2026-10-25)
+
+- Keep all 27 ADRs.
+- Delete `specs/`, keeping the `specs-archive` tag.
+- Fold this work into PR #9 (branch `worktree-agent-skills-guidance`).
+
+## Follow-ups → Issues
+
+- **Slim `get_daily_summary`** (~120K characters): still open per the epic 6 notes, so it becomes an issue.
+- **Ghost GitHub Actions runs:** no issue, since only GitHub support can act on them.
+
 ## Open Questions
 
-1. **Trim the shortlist.** Keep all 27, or cut the bold ones (010, 011, 012, 020)? Anything missing?
-2. **Delete or freeze `specs/`?** This spec assumes delete plus a `specs-archive` tag, which is the "as if from the start" end state. Freezing in place is the low-effort alternative; with it, structural citations could stay.
-3. **Follow-ups with unclear status.** Which of these are still open, so they become issues?
-   - (a) Slim `get_daily_summary`'s ~120K-character payload: likely open.
-   - (b) Epic 5 phase 3: the `FDC_API_KEY` secret on the `apps/web` worker, the on-phone scan smoke test, and continued catalog seeding.
-   - (c) The two ghost GitHub Actions runs, which need GitHub support. Probably not worth an issue.
-4. **Branching.** This work is stacked on PR #9's branch. Fine to land as a second PR after #9, or fold it into #9?
+1. **Epic 5 phase 3 leftovers** (the `FDC_API_KEY` secret on the `apps/web` worker, the on-phone scan smoke test, continued catalog seeding): are any still open? Until Scott answers, no issue is created; the build does not block on this.
