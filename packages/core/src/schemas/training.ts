@@ -1,5 +1,5 @@
 /**
- * Zod input schemas for the training-plan MCP tools (specs/04-training-plans/SPEC.md §4).
+ * Zod input schemas for the training-plan MCP tools (ADR-022).
  * Same conventions as inputs.ts: unit-tagged quantities converted server-side,
  * dates YYYY-MM-DD in the user's timezone, structured result unions from repos.
  */

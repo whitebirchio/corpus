@@ -1,5 +1,5 @@
 /**
- * First-party session for the PWA (specs/02-pwa-client/SPEC.md §2 #7/#8/#15):
+ * First-party session for the PWA (ADR-018):
  * a signed *stateless* cookie — no session table, no KV. Payload carries only
  * the user id; timezone/units and the email allowlist are re-checked against
  * the DB on every request, so nothing here can go stale and allowlist removal
@@ -105,7 +105,7 @@ export async function verifySession(
 
 /**
  * Set-Cookie value for the session. httpOnly + SameSite=Lax; CSRF protection
- * for writes comes from the required X-Corpus-Csrf header (SPEC §2 #15).
+ * for writes comes from the required X-Corpus-Csrf header (ADR-018).
  * `secure` is derived from the request protocol so wrangler dev over
  * http://localhost still works.
  */

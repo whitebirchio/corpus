@@ -138,8 +138,8 @@ lower my cholesterol, given my labs?"* — Claude should reason over your real L
 
 A GitHub Actions job pulls sleep, HRV, resting HR, steps, body battery,
 stress, activity summaries, and weigh-ins from Garmin Connect every night and
-posts them to the worker (../specs/01-initial-platform/SPEC.md §8.4,
-../specs/06-garmin-weigh-ins/SPEC.md). One-time setup:
+posts them to the worker ([ADR-014](decisions/014-nightly-garmin-sync.md),
+[ADR-026](decisions/026-garmin-weigh-ins-source-of-truth.md)). One-time setup:
 
 1. **Create the shared secret** (any long random string):
 
@@ -213,7 +213,7 @@ when it's been >12 h since the last successful ingest.
 
 ## 8. PWA (optional — the glanceable dashboard)
 
-The web app (specs/02-pwa-client) is a second worker, `corpus-app`, deployed by
+The web app ([ADR-017](decisions/017-web-worker-rest-adapter.md)) is a second worker, `corpus-app`, deployed by
 the same CI. One-time setup:
 
 1. **Google redirect URI** — on the *same* OAuth client from step 2, add:

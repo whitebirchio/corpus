@@ -104,7 +104,7 @@ AUTH_HEADERS = {"Authorization": f"Bearer {SECRET}"}
 
 # Seconds to wait before each retry of a worker call (so 3 attempts total).
 # Every worker endpoint is idempotent — token GET/PUT, and ingest by design
-# (specs/01-initial-platform/SPEC.md §5.9) — so retrying is always safe. A
+# (ADR-008) — so retrying is always safe. A
 # transient failure (e.g. a stalled Neon connection behind the worker, seen
 # 2026-10-24) shouldn't fail the run; a persistent one still does, loudly.
 RETRY_DELAYS = (15, 45)

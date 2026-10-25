@@ -41,7 +41,7 @@ export default defineConfig({
             },
           },
           {
-            // Offline-tolerant, not offline-capable (SPEC §4): a cold open
+            // Offline-tolerant, not offline-capable: a cold open
             // with no network shows the last-seen dashboard for a day.
             urlPattern: ({ url, request }) =>
               url.pathname.startsWith("/api/") && request.method === "GET",

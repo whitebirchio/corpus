@@ -1,11 +1,11 @@
 /**
- * Personal food catalog (specs/05-nutrition-accuracy/SPEC.md §4).
+ * Personal food catalog (ADR-025).
  *
  * The catalog is per-user and demand-driven: entries exist because Scott eats
  * the food, not because a global DB has it. Matching is agent-mediated —
  * `searchFoodsCatalog` returns ranked candidates for the agent to confirm,
- * never a silent best guess (SPEC 05 decision #5). All portion→gram→macro
- * arithmetic lives here, server-side (decision #1).
+ * never a silent best guess (ADR-025). All portion→gram→macro
+ * arithmetic lives here, server-side (ADR-007).
  */
 import { and, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import type { Db, UserCtx } from "../db/client.js";
@@ -211,7 +211,7 @@ export async function getFoodsByIds(
  * `portionLabel` against the food's portion map (forgivingly — "scoop",
  * "1 scoop", and "scoops" all hit the same portion) and scale by `quantity`.
  * Returns undefined when nothing resolves — the caller falls back to
- * agent-supplied macros rather than blocking the log (SPEC 05 decision #6).
+ * agent-supplied macros rather than blocking the log (ADR-025).
  */
 export function resolveGrams(
   food: Pick<Food, "portions">,

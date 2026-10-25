@@ -686,7 +686,7 @@ body {
   font-size: 13.5px;
 }
 
-/* --- training plan (specs/04-training-plans/SPEC.md §6) --- */
+/* --- training plan (ADR-022) --- */
 
 .status-chip {
   display: inline-block;
@@ -734,7 +734,7 @@ body {
   font-weight: 400;
 }
 
-/* --- Scan tab (specs/05 §5): camera viewport + confirm card ---------------- */
+/* --- Scan tab (ADR-025): camera viewport + confirm card ------------------- */
 
 .scan {
   display: flex;

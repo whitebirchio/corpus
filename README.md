@@ -8,9 +8,12 @@ goals — one schema, one timeline, one place to ask *"what should I do today?"*
 
 ## Architecture
 
-- **[specs/](specs/README.md)** — the design history, one subdirectory per
-  epic of work (data model, MCP surface, auth, idempotency all live in the
-  first epic's spec). Read this first.
+- **[CLAUDE.md](CLAUDE.md)** — architecture, invariants, commands, and the
+  spec-driven workflow (agent-skills: root `SPEC.md`, `tasks/`, ADRs in
+  `docs/decisions/`). Read this first.
+- **[docs/decisions/](docs/decisions/README.md)** — architecture decision
+  records: why Corpus is built the way it is (hosting, RLS, canonical units,
+  dedup, the PWA, Garmin sync, …).
 - **`packages/core`** — domain core: Drizzle schema, Zod tool schemas, unit
   conversion (canonical metric storage), timezone handling, repositories with
   dedup/upsert semantics. No MCP or HTTP dependencies.
@@ -36,7 +39,7 @@ npm run deploy         # deploy to Cloudflare
 
 ## Status
 
-The initial platform ([specs/01-initial-platform](specs/01-initial-platform/SPEC.md))
+The initial platform ([ADR-001](docs/decisions/001-agent-first-mcp-surface.md) onward)
 is implemented through Phase 3, minus one leftover item:
 
 - **Phase 1 — core daily loop:** check-ins, workouts, meals, regimen, goals,
@@ -48,9 +51,11 @@ is implemented through Phase 3, minus one leftover item:
   storage in R2 via a credential-free worker upload route.
 - **Phase 3 — imports & rhythm:** automated nightly Garmin sync with
   reconciliation, and all six MCP prompts (`morning_checkin`, `weekly_review`,
-  …). Upload ergonomics from mobile is still open — see the backlog below.
+  …). Upload ergonomics from mobile is still open (#7).
 
-What's next lives in [specs/](specs/README.md): epic 2 (web/iOS clients) is
-starting exploration, and anything not yet scoped into an epic — upload
-ergonomics, proactive briefings, a dashboard, second-user onboarding — is
-tracked in its backlog.
+Later work (PWA dashboard, record edits, training plans, nutrition accuracy,
+Garmin weigh-ins, macro meters) is recorded in
+[docs/decisions/](docs/decisions/README.md).
+What's next — ideas not yet specced, such as upload ergonomics and proactive
+briefings — is tracked in
+[GitHub Issues](https://github.com/whitebirchio/corpus/issues).

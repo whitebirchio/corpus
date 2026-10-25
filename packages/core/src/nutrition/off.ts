@@ -1,6 +1,5 @@
 /**
- * Open Food Facts normalization (specs/05-nutrition-accuracy/SPEC.md
- * decision #4). Pure: takes one `product` object from the OFF API (barcode
+ * Open Food Facts normalization (ADR-025). Pure: takes one `product` object from the OFF API (barcode
  * lookup or search) and produces a FoodCandidate, or null when unusable.
  * OFF publishes nutriments per 100 g under `*_100g` keys; sodium comes back
  * in grams and is converted to mg (canonical micro unit).

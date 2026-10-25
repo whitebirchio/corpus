@@ -1,11 +1,11 @@
 /**
- * Zod input schemas for MCP tools (specs/01-initial-platform/SPEC.md §6.1). Defined in core so the MCP
+ * Zod input schemas for MCP tools. Defined in core so the MCP
  * server, importers, and tests all validate identically.
  *
  * Every quantity that has a unit arrives unit-tagged ({ value, unit }) and is
  * converted server-side (units.ts). Dates are YYYY-MM-DD in the user's
  * timezone; times are HH:MM local. `allowDuplicate` opts out of soft-dedup
- * after the agent has confirmed with the user (specs/01-initial-platform/SPEC.md §5.9 tier 3).
+ * after the agent has confirmed with the user (ADR-008, tier 3).
  */
 import { z } from "zod";
 
@@ -174,7 +174,7 @@ export const logWorkoutInput = z.object(logWorkoutShape);
 export type LogWorkoutInput = z.infer<typeof logWorkoutInput>;
 
 // Session-level edit only — blocks/movements/sets are not editable via MCP; to
-// fix reps/weights, delete and re-log. See specs/03-record-edits/SPEC.md.
+// fix reps/weights, delete and re-log (ADR-019).
 export const updateWorkoutShape = {
   sessionId: z.uuid().describe("session.id from get_recent_workouts / get_daily_summary"),
   date: localDate.optional(),
@@ -202,7 +202,7 @@ export const mealItemInput = z.object({
   name: z.string().min(1),
   quantity: z.number().positive().optional(),
   unitNote: z.string().optional().describe("Verbatim portion, e.g. '1 cup', '6 oz'"),
-  // Catalog binding (specs/05-nutrition-accuracy/SPEC.md §4.2): when foodId is
+  // Catalog binding (ADR-025): when foodId is
   // set, the server computes macros from grams (or portionLabel × quantity) and
   // any agent-supplied macros are overridden.
   foodId: z
@@ -257,7 +257,7 @@ export const logMealInput = z
   });
 export type LogMealInput = z.infer<typeof logMealInput>;
 
-// Edit/delete target only conversation-logged records; see specs/03-record-edits/SPEC.md.
+// Edit/delete target only conversation-logged records (ADR-019).
 export const updateMealShape = {
   mealId: z.uuid().describe("id from get_daily_summary (nutrition.meals[].id)"),
   date: localDate.optional(),

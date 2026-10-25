@@ -1,5 +1,6 @@
 /**
- * Corpus data model — see specs/01-initial-platform/SPEC.md §5.
+ * Corpus data model. Why it is shaped this way: docs/decisions/ (notably
+ * ADR-006 RLS, ADR-007 canonical units, ADR-008 dedup).
  *
  * Conventions:
  * - Column property names are camelCase; the DB uses snake_case via drizzle's
@@ -249,7 +250,7 @@ export const users = pgTable(
     displayName: text().notNull(),
     timezone: text().notNull().default("America/New_York"),
     unitPreference: unitPreference().notNull().default("imperial"),
-    // Where to check the weather when planning training (specs/04-training-plans/SPEC.md decision #9).
+    // Where to check the weather when planning training (ADR-021).
     homeLocation: text(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -395,8 +396,8 @@ export const workoutSessions = pgTable(
     title: text(),
     source: dataSource().notNull().default("conversation"),
     sourceRef: text(), // e.g. Garmin activity id — idempotency key for imports
-    // Agent-mediated link to the training plan (specs/04-training-plans/SPEC.md
-    // decision #6); deleting a plan never deletes the logged workout.
+    // Agent-mediated link to the training plan (ADR-023); deleting a plan never
+    // deletes the logged workout.
     plannedSessionId: uuid().references((): AnyPgColumn => plannedSessions.id, {
       onDelete: "set null",
     }),
@@ -609,7 +610,7 @@ export const mealItems = pgTable(
     /** fiber_g, sugar_g, sat_fat_g, sodium_mg, cholesterol_mg, potassium_mg, ... */
     micros: jsonb().$type<Record<string, number>>(),
     estimateConfidence: estimateConfidence(),
-    // Catalog binding (specs/05-nutrition-accuracy/SPEC.md §4.1): which food this
+    // Catalog binding (ADR-025): which food this
     // item was resolved against and the grams the server computed macros from.
     foodId: uuid().references(() => foods.id, { onDelete: "set null" }),
     gramsResolved: doublePrecision(),
@@ -873,7 +874,7 @@ export const observations = pgTable(
 );
 
 // ---------------------------------------------------------------------------
-// Training plans (specs/04-training-plans/SPEC.md §3)
+// Training plans (ADR-022)
 // ---------------------------------------------------------------------------
 
 /** Checkpoints on the way to a goal, e.g. "30 mi/week base by Dec 2026". */
@@ -909,7 +910,7 @@ export const goalMilestones = pgTable(
   ],
 );
 
-/** One plan per calendar week; `focus` is the light phase concept (SPEC 04 decision #5). */
+/** One plan per calendar week; `focus` is the light phase concept (ADR-022). */
 export const trainingWeeks = pgTable(
   "training_weeks",
   {
@@ -948,7 +949,7 @@ export const plannedSessions = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
-    // One planned session per day — no two-a-days (SPEC 04 §3.2).
+    // One planned session per day — no two-a-days (ADR-022).
     uniqueIndex("planned_sessions_user_date_uq").on(t.userId, t.plannedDate),
     index("planned_sessions_week_idx").on(t.weekId),
     ownerPolicy(t),
@@ -990,7 +991,7 @@ export const plannedBlocks = pgTable(
 
 /**
  * Prescription per movement: uniform sets × reps @ target load — there is
- * deliberately no planned_sets table (SPEC 04 decision #3). Numeric fields are
+ * deliberately no planned_sets table (ADR-022). Numeric fields are
  * canonical; repsText/prescription are display/irregular-scheme escape hatches.
  */
 export const plannedBlockMovements = pgTable(
@@ -1025,7 +1026,7 @@ export const plannedBlockMovements = pgTable(
 
 /**
  * Append-only adjustment history, written in the same transaction as the plan
- * mutation it describes (SPEC 04 decision #7) — the reinforcement loop's
+ * mutation it describes (ADR-023) — the reinforcement loop's
  * training data ("skipped 3 Fridays running").
  */
 export const planChanges = pgTable(
@@ -1050,7 +1051,7 @@ export const planChanges = pgTable(
 );
 
 // ---------------------------------------------------------------------------
-// Athlete model (specs/04-training-plans/SPEC.md §3.4) — the reinforcement substrate
+// Athlete model (ADR-023) — the reinforcement substrate
 // ---------------------------------------------------------------------------
 
 /**
@@ -1081,8 +1082,8 @@ export const equipmentItems = pgTable(
 
 /**
  * The agent's current belief about a capability — one row per natural key,
- * upserted; the progression history lives in the actuals, not here (SPEC 04
- * decision #12). `basis` cites the evidence ("5×5 @ 84 kg on 2026-07-01, RPE 7").
+ * upserted; the progression history lives in the actuals, not here (ADR-022).
+ * `basis` cites the evidence ("5×5 @ 84 kg on 2026-07-01, RPE 7").
  */
 export const capabilityEstimates = pgTable(
   "capability_estimates",
@@ -1139,7 +1140,7 @@ export const planningConstraints = pgTable(
 );
 
 // ---------------------------------------------------------------------------
-// Personal food catalog & recipes (specs/05-nutrition-accuracy/SPEC.md §4)
+// Personal food catalog & recipes (ADR-025)
 // ---------------------------------------------------------------------------
 
 export const foodSource = pgEnum("food_source", ["label", "fdc", "off", "estimate"]);
@@ -1152,9 +1153,9 @@ export interface FoodPortion {
 
 /**
  * Per-user verified food catalog — demand-driven, not a mirror of any global
- * DB (SPEC 05 decision #3). Macros are stored per 100 g (canonical mass
+ * DB (ADR-025). Macros are stored per 100 g (canonical mass
  * basis); `portions` maps household measures to grams so the server, never
- * the LLM, does portion→gram→macro math (SPEC 05 decision #1).
+ * the LLM, does portion→gram→macro math (ADR-007, ADR-025).
  */
 export const foods = pgTable(
   "foods",

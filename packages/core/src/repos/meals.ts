@@ -13,7 +13,7 @@ type MealItemInput = NonNullable<LogMealInput["items"]>[number];
 type ResolvedItem = MealItemInput & { gramsResolved?: number };
 
 /**
- * Resolve catalog-bound items (specs/05-nutrition-accuracy/SPEC.md §4.2): for
+ * Resolve catalog-bound items (ADR-025): for
  * each item carrying a foodId, compute grams (explicit `grams`, else
  * portionLabel × quantity against the food's portion map) and overwrite the
  * macros server-side — the LLM's numbers are a fallback, not the answer.
@@ -71,9 +71,9 @@ export type LogMealResult =
   | { status: "possible_duplicate"; candidates: MealDuplicateCandidate[] };
 
 /**
- * Hybrid granularity per specs/01-initial-platform/SPEC.md §5.4: totals are always populated — summed
- * from items when itemized, taken directly otherwise. Soft dedup per §5.9
- * tier 3: a same-day meal of the same type within 15% calories is surfaced
+ * Hybrid granularity (ADR-010): totals are always populated — summed
+ * from items when itemized, taken directly otherwise. Soft dedup (ADR-008,
+ * tier 3): a same-day meal of the same type within 15% calories is surfaced
  * as a candidate instead of silently inserted.
  */
 export async function logMeal(db: Db, ctx: UserCtx, input: LogMealInput): Promise<LogMealResult> {
@@ -232,7 +232,7 @@ export interface MealDetail {
 
 /**
  * One addressable meal with its items — backs the PWA's GET /api/meals/:id
- * (specs/02-pwa-client/SPEC.md §5: reads expose ids/provenance so the later
+ * (ADR-016: reads expose ids/provenance so the later
  * edit/delete phase slots in without restructuring).
  */
 export async function getMealWithItems(
@@ -267,7 +267,7 @@ export type DeleteMealResult =
 /**
  * Correct a conversationally-logged meal. Only `source = "conversation"` meals
  * are editable — imported records (MacroFactor/Garmin) are refused so a re-import
- * can't overwrite the edit (specs/03-record-edits/SPEC.md, specs/02-pwa-client §2 #11).
+ * can't overwrite the edit (ADR-019).
  * Fields are patched (absent = untouched). Supplying `items` replaces the item
  * list and recomputes totals; supplying `totals` sets them directly and drops any
  * items (input validation forbids sending both).

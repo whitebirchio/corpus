@@ -1,5 +1,5 @@
 /**
- * Saved recipes (specs/05-nutrition-accuracy/SPEC.md §4.1): reusable composite
+ * Saved recipes (ADR-025): reusable composite
  * meals whose items reference catalog foods by grams. Per-serving totals are
  * derived on read — never stored — mirroring how day nutrition is summed.
  */

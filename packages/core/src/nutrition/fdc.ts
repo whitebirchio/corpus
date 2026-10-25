@@ -1,6 +1,5 @@
 /**
- * USDA FoodData Central normalization (specs/05-nutrition-accuracy/SPEC.md
- * decision #4). Pure: takes one food object from the `/v1/foods/search`
+ * USDA FoodData Central normalization (ADR-025). Pure: takes one food object from the `/v1/foods/search`
  * response and produces a FoodCandidate, or null when the entry is unusable.
  * Search-result nutrient values are per 100 g across data types (Branded
  * label values are already rescaled by FDC).

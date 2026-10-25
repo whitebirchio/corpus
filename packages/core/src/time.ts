@@ -1,6 +1,6 @@
 /**
  * Timezone-aware date handling. Timestamps are stored UTC; daily records key
- * on a `local_date` derived from the user's IANA timezone (specs/01-initial-platform/SPEC.md §5).
+ * on a `local_date` derived from the user's IANA timezone (ADR-007).
  * Implemented with Intl (available in Workers) — no date library needed.
  */
 
@@ -84,7 +84,7 @@ export function addDays(dateStr: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** The Monday of the week containing `dateStr` — training weeks key on it (specs/04-training-plans/SPEC.md §3.2). */
+/** The Monday of the week containing `dateStr` — training weeks key on it (ADR-022). */
 export function mondayOf(dateStr: string): string {
   const d = new Date(`${dateStr}T00:00:00Z`);
   const sinceMonday = (d.getUTCDay() + 6) % 7;

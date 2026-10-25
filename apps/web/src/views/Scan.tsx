@@ -1,6 +1,5 @@
 /**
- * Barcode scanner — the PWA's first write surface (specs/05-nutrition-accuracy
- * SPEC §5). Camera frames run through the BarcodeDetector ponyfill (zxing-wasm;
+ * Barcode scanner — the PWA's first write surface (ADR-025). Camera frames run through the BarcodeDetector ponyfill (zxing-wasm;
  * iOS Safari has no native detector), the GTIN resolves via
  * GET /api/foods/barcode/:gtin (catalog → OFF → FDC), and logging POSTs through
  * the same core logMeal path as chat — server-side macros, dedup included.

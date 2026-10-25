@@ -1,5 +1,5 @@
 /**
- * Zod input schemas for the Phase 2 lab/test/document tools (specs/01-initial-platform/SPEC.md §6.1).
+ * Zod input schemas for the Phase 2 lab/test/document tools.
  */
 import { z } from "zod";
 import { localDate, massValue } from "./inputs.js";

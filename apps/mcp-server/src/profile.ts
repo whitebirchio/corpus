@@ -1,5 +1,5 @@
 /**
- * The corpus://profile resource (specs/01-initial-platform/SPEC.md §6.3): who the user is and what
+ * The corpus://profile resource: who the user is and what
  * they're working toward — identity, timezone, unit preference, and an
  * active-goals digest (with milestones) ordered by priority. Reading it primes
  * any conversation with context that would otherwise be re-derived each

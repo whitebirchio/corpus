@@ -30,7 +30,7 @@ beforeEach(async () => {
   ).food.id;
 });
 
-describe("logMeal with catalog items (SPEC 05 §4.2)", () => {
+describe("logMeal with catalog items (ADR-025)", () => {
   it("computes macros server-side from foodId + grams, overriding agent estimates", async () => {
     const result = await logMeal(db, ctx, {
       date: "2026-07-18",

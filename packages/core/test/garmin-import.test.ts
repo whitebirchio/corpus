@@ -330,7 +330,7 @@ describe("importGarminData — activities", () => {
 });
 
 // Shaped exactly like a live get_weigh_ins allWeightMetrics entry (manual
-// entry, 2026-10-23 07:23 America/New_York) — see specs/06-garmin-weigh-ins §10.
+// entry, 2026-10-23 07:23 America/New_York) — see ADR-026's payload traps.
 // Note `date` is local wall-clock encoded as UTC and must be ignored.
 const manualWeighIn = {
   samplePk: 1792754614878,

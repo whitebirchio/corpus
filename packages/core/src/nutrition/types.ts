@@ -1,5 +1,5 @@
 /**
- * NutritionSource port (specs/05-nutrition-accuracy/SPEC.md decision #8):
+ * NutritionSource port (ADR-004):
  * core defines the interface and the pure response normalizers; the workers
  * implement it with fetch adapters. Core stays HTTP-free.
  */

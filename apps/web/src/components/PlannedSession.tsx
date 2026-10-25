@@ -1,6 +1,6 @@
 import type { ApiPlannedBlock, PlannedSessionStatus } from "../api.js";
 
-/** Status chip for a planned session (SPEC 04 §6): done / skipped / upcoming. */
+/** Status chip for a planned session: done / skipped / upcoming. */
 export function StatusChip({ status }: { status: PlannedSessionStatus }) {
   const label =
     status === "completed"

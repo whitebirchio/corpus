@@ -1,6 +1,5 @@
 /**
- * Fetch adapters for the NutritionSource port (specs/05-nutrition-accuracy/SPEC.md
- * decision #8): thin HTTP shells over USDA FoodData Central and Open Food
+ * Fetch adapters for the NutritionSource port (ADR-004): thin HTTP shells over USDA FoodData Central and Open Food
  * Facts. All normalization is core's (pure, fixture-tested); failures degrade
  * to empty results — an external DB being down must never block a log.
  */

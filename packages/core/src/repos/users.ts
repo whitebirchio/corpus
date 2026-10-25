@@ -35,7 +35,7 @@ export async function getUser(db: Db, userId: string): Promise<User | undefined>
   return rows[0];
 }
 
-/** Where to check the weather when planning training (specs/04-training-plans/SPEC.md decision #9). */
+/** Where to check the weather when planning training (ADR-021). */
 export async function setHomeLocation(db: Db, userId: string, location: string): Promise<User> {
   const rows = await db
     .update(users)

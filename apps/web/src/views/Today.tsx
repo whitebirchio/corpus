@@ -23,7 +23,7 @@ import {
 import { useData } from "../useData.js";
 
 /**
- * The "today's macros vs. target" view (SPEC §4 use case 1) plus the day's
+ * The "today's macros vs. target" view (ADR-016) plus the day's
  * Garmin metrics when present. A small day stepper reuses the same
  * /days/:date resources for "how did yesterday end up".
  */
@@ -38,7 +38,7 @@ export function Today({ me }: { me: MeResponse }) {
   const day = nutrition.data;
   const sessions = workouts.data?.workouts ?? null;
   // The planned session for the shown day; the card renders only when the
-  // week has a plan at all (SPEC 04 §6 — glanceable, not naggy).
+  // week has a plan at all (glanceable, not naggy).
   const planned = plan.data?.week
     ? (plan.data.sessions.find((s) => s.plannedDate === date) ?? null)
     : null;

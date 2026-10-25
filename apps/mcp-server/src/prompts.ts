@@ -1,5 +1,5 @@
 /**
- * MCP prompts (specs/01-initial-platform/SPEC.md §6.3): reusable, versioned workflows that encode the
+ * MCP prompts: reusable, versioned workflows that encode the
  * recurring interaction patterns so every chat doesn't reinvent them. A prompt
  * returns a single user-turn message that states the intent and the procedure
  * the assistant should follow using the real tools/resources — no data access
@@ -97,7 +97,7 @@ Help me decide what workout to do today${focus && focus.trim() ? `, biased towar
     },
     () =>
       userMessage(`
-I want to log a meal. Capture it accurately into \`log_meal\` (specs/05-nutrition-accuracy/SPEC.md, phase 1 protocol).
+I want to log a meal. Capture it accurately into \`log_meal\`.
 
 - If I haven't shared it yet, ask what I ate — a photo plus a short caption is the preferred input; a plain description works too.
 - Itemize every component, including the easy-to-miss ones: cooking fat, dressings, sauces, cheese, beverages. Record each portion verbatim in \`unitNote\` ("1 cup", "2 scoops", "6 oz"); when I give an exact weight, use it as-is — never round it away.

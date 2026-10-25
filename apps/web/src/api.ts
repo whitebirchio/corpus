@@ -1,7 +1,7 @@
 /**
  * Typed client for the worker's REST surface. Types here describe the *wire*
  * shapes (dates as ISO strings after JSON serialization), so the SPA never
- * imports server types. The CSRF header rides on every non-GET (SPEC §2 #15).
+ * imports server types. The CSRF header rides on every non-GET (ADR-018).
  */
 
 export interface ApiUser {
@@ -258,7 +258,7 @@ export interface TrendResult {
   series: TrendSeries[];
 }
 
-// --- barcode logging (specs/05 §5) ------------------------------------------
+// --- barcode logging (ADR-025) ---------------------------------------------
 
 export interface ApiFoodPortion {
   label: string;

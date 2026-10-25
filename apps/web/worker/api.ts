@@ -1,8 +1,8 @@
 /**
- * The REST surface (specs/02-pwa-client/IMPLEMENTATION.md §3.1): thin
+ * The REST surface (ADR-017): thin
  * validate → withUserDb → core repo → serialize shells. GET-only until the
- * barcode-logging writes (specs/05 §5) landed on the write-forward path the
- * routes were shaped for (SPEC §5.2).
+ * barcode-logging writes (ADR-025) landed on the write-forward path the
+ * routes were shaped for (ADR-016).
  *
  * Every request re-loads the user row inside the same RLS transaction as the
  * repo call — timezone/unit changes apply immediately and the allowlist is
@@ -71,14 +71,14 @@ apiRoutes.use("*", async (c, next) => {
   if (!session) throw new ApiError(401, "Not signed in");
   if (c.req.method !== "GET" && c.req.method !== "HEAD") {
     // CSRF: SameSite=Lax plus this custom header on anything mutating
-    // (SPEC §2 #15). v1 is read-only; the rule is set for the write phase.
+    // (ADR-018). v1 is read-only; the rule is set for the write phase.
     if (c.req.header("x-corpus-csrf") !== "1") {
       throw new ApiError(403, "Missing X-Corpus-Csrf header");
     }
   }
   c.set("uid", session.uid);
   await next();
-  // Rolling session (SPEC §2 #8): each authenticated response restarts the
+  // Rolling session (ADR-018): each authenticated response restarts the
   // 90-day window.
   const fresh = await signSession(newSession(session.uid), c.env.SESSION_SECRET);
   c.res.headers.append("Set-Cookie", sessionCookie(fresh, isSecureRequest(c.req.url)));
@@ -125,7 +125,7 @@ apiRoutes.get("/days/:date/nutrition", async (c) => {
   const date = parseDateParam(c);
   const day = await runAsUser(c, (db, ctx) => getDayNutrition(db, ctx, date));
   // Meals ride along whole (id, source, granularity, ...) — the dashboard
-  // shows totals but the records stay addressable (SPEC §5.1).
+  // shows totals but the records stay addressable (ADR-016).
   return c.json({ date, meals: day.meals, totals: day.totals, targets: day.targets ?? null });
 });
 
@@ -133,7 +133,7 @@ apiRoutes.get("/days/:date/workouts", async (c) => {
   const date = parseDateParam(c);
   const workouts = await runAsUser(c, (db, ctx) => getDayWorkouts(db, ctx, date));
   // Flatten the enriched session into a glanceable card shape; the session id
-  // stays addressable for a future detail view (SPEC §5.3).
+  // stays addressable for a future detail view (ADR-016).
   return c.json({
     date,
     workouts: workouts.map((w) => ({
@@ -176,7 +176,7 @@ apiRoutes.get("/days/:date/body", async (c) => {
   const body = await runAsUser(c, async (db, ctx, user) => {
     const m = await getBodyMeasurementAsOf(db, ctx, date);
     if (!m) return null;
-    // Canonical kg → the user's unit at the edge (SPEC §3).
+    // Canonical kg → the user's unit at the edge (ADR-007).
     const imperial = user.unitPreference === "imperial";
     return {
       measuredOn: m.measuredOn,
@@ -196,14 +196,14 @@ apiRoutes.get("/meals/:id", async (c) => {
   return c.json(detail);
 });
 
-// --- barcode logging (specs/05-nutrition-accuracy/SPEC.md §5) ---------------
+// --- barcode logging (ADR-025) ---------------------------------------------
 // The PWA's first write surface, on the write-forward path epic 3 opened.
 
 const GTIN = /^\d{8,14}$/;
 
 /**
  * Catalog food → wire shape with per-portion macros precomputed server-side,
- * so the client renders numbers without doing nutrition math (SPEC §3 spirit:
+ * so the client renders numbers without doing nutrition math (ADR-007:
  * conversions at the adapter edge).
  */
 function serializeFood(f: Food) {
@@ -265,7 +265,7 @@ apiRoutes.get("/plan/week", async (c) => {
   if (start !== undefined && !localDateSchema.safeParse(start).success) {
     throw new ApiError(400, "Invalid start — expected YYYY-MM-DD");
   }
-  // Any date is normalized to its week's Monday in core (SPEC 04 §4.2).
+  // Any date is normalized to its week's Monday in core (ADR-022).
   const body = await runAsUser(c, async (db, ctx, user) =>
     serializeTrainingPlan(await getTrainingPlan(db, ctx, start), user.unitPreference),
   );
@@ -293,7 +293,7 @@ type Pref = "imperial" | "metric";
 
 /**
  * Canonical → display for the workout detail view: physical quantities become
- * pre-formatted strings in the user's units (SPEC §3), so the SPA renders them
+ * pre-formatted strings in the user's units (ADR-007), so the SPA renders them
  * verbatim. Reps/RPE/HR pass through as numbers.
  */
 function serializeWorkoutDetail(d: WorkoutDetail, pref: Pref) {
@@ -346,7 +346,7 @@ function serializeBlock(b: WorkoutBlockDetail, pref: Pref) {
   };
 }
 
-/** Planned week → wire shape: prescriptions as display strings (SPEC 04 §6). */
+/** Planned week → wire shape: prescriptions as display strings (ADR-007). */
 function serializeTrainingPlan(plan: TrainingPlanResult, pref: Pref) {
   return {
     weekStart: plan.weekStart,
@@ -415,7 +415,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
  * Canonical → display conversion at the adapter edge, never in core
- * (SPEC §3). Distance (m), mass (kg) and sleep (s) get converted; kcal, bpm,
+ * (ADR-007). Distance (m), mass (kg) and sleep (s) get converted; kcal, bpm,
  * ms, %, score, steps and sessions pass through unchanged.
  */
 function displayUnits(trend: TrendResult, pref: "imperial" | "metric"): TrendResult {

@@ -1,5 +1,5 @@
 /**
- * Garmin Connect importer (specs/01-initial-platform/SPEC.md §8.4, rescoped 2026-07-02).
+ * Garmin Connect importer (ADR-014).
  *
  * The nightly sync job (apps/garmin-sync) authenticates with Garmin and
  * forwards the raw JSON it pulled; ALL mapping, unit handling, and
@@ -17,7 +17,7 @@
  *     timer/HR, the per-set detail comes from conversational logging, and a
  *     later re-run enriches once the session exists (the job pulls a trailing
  *     window, so this self-heals).
- * Weigh-ins (specs/06-garmin-weigh-ins) upsert into body_measurements as
+ * Weigh-ins (ADR-026) upsert into body_measurements as
  * `garmin_export` rows keyed on Garmin's real timestamp — tier-2 natural-key
  * dedup on (user_id, measured_at, source), so edits in Garmin update in place.
  */
