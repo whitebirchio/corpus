@@ -45,10 +45,10 @@ Citation passes need the ADR numbers to exist, so they can cite `ADR-NNN` and th
 ### Phase 3: Citation passes
 - [x] Task 8: core: `db/schema.ts`
 - [x] Task 9: core: `schemas/*` (inputs, foods, labs, training, trends)
-- [ ] Task 10: core: `repos/` meals, foods, recipes, trends, summary
-- [ ] Task 11: core: `repos/` workouts, movements, training, athlete, regimen
-- [ ] Task 12: core: `repos/` labs, checkins, users + `labs/analytes.ts`, `import/garmin.ts`
-- [ ] Task 13: core: `nutrition/*`, `time.ts`, `units.ts`
+- [x] Task 10: core: `repos/` meals, foods, recipes, trends, summary
+- [x] Task 11: core: `repos/` workouts, movements, training, athlete, regimen
+- [x] Task 12: core: `repos/` labs, checkins, users + `labs/analytes.ts`, `import/garmin.ts`
+- [x] Task 13: core: `nutrition/*`, `time.ts`, `units.ts`
 - [ ] Task 14: core tests (2 files) + `apps/garmin-sync` (sync.py, test_sync.py) + `.github/workflows/garmin-sync.yml`
 - [ ] Task 15: mcp-server: `tools.ts`, `prompts.ts`, `mcp.ts`, `schemaDoc.ts`, `profile.ts`
 - [ ] Task 16: mcp-server: `auth/google.ts`, `db.ts`, `garmin.ts`, `upload.ts`, `nutrition.ts`, `trainingProfile.ts`, `wrangler.jsonc`
