@@ -1,6 +1,5 @@
 /**
- * Input schemas for the personal food catalog & recipes
- * (specs/05-nutrition-accuracy/SPEC.md §4).
+ * Input schemas for the personal food catalog & recipes (ADR-025).
  */
 import { z } from "zod";
 

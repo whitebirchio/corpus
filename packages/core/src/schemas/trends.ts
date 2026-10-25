@@ -1,5 +1,5 @@
 /**
- * Trend query shapes for the PWA's REST adapter (specs/02-pwa-client/SPEC.md §4).
+ * Trend query shapes for the PWA's REST adapter (ADR-017).
  * Defined in core so the adapter and tests validate identically, mirroring
  * schemas/inputs.ts for the MCP tools.
  */

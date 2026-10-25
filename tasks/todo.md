@@ -94,7 +94,7 @@ Each task applies the citation rule to its files.
 **Dependencies (each):** Task 7.
 
 - [x] **Task 8:** `packages/core/src/db/schema.ts` (14 cites) · S
-- [ ] **Task 9:** `packages/core/src/schemas/{inputs,foods,labs,training,trends}.ts` · S
+- [x] **Task 9:** `packages/core/src/schemas/{inputs,foods,labs,training,trends}.ts` · S
 - [ ] **Task 10:** `packages/core/src/repos/{meals,foods,recipes,trends,summary}.ts` · S
 - [ ] **Task 11:** `packages/core/src/repos/{workouts,movements,training,athlete,regimen}.ts` · S
 - [ ] **Task 12:** `packages/core/src/repos/{labs,checkins,users}.ts`, `src/labs/analytes.ts`, `src/import/garmin.ts` · S

@@ -44,7 +44,7 @@ Citation passes need the ADR numbers to exist, so they can cite `ADR-NNN` and th
 
 ### Phase 3: Citation passes
 - [x] Task 8: core: `db/schema.ts`
-- [ ] Task 9: core: `schemas/*` (inputs, foods, labs, training, trends)
+- [x] Task 9: core: `schemas/*` (inputs, foods, labs, training, trends)
 - [ ] Task 10: core: `repos/` meals, foods, recipes, trends, summary
 - [ ] Task 11: core: `repos/` workouts, movements, training, athlete, regimen
 - [ ] Task 12: core: `repos/` labs, checkins, users + `labs/analytes.ts`, `import/garmin.ts`
