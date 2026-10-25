@@ -11,9 +11,9 @@ goals — one schema, one timeline, one place to ask *"what should I do today?"*
 - **[CLAUDE.md](CLAUDE.md)** — architecture, invariants, commands, and the
   spec-driven workflow (agent-skills: root `SPEC.md`, `tasks/`, ADRs in
   `docs/decisions/`). Read this first.
-- **[specs/](specs/README.md)** — frozen archive of the epic 1–7 specs (the
-  original data model, MCP surface, auth, and idempotency design live in the
-  first one).
+- **[docs/decisions/](docs/decisions/README.md)** — architecture decision
+  records: why Corpus is built the way it is (hosting, RLS, canonical units,
+  dedup, the PWA, Garmin sync, …).
 - **`packages/core`** — domain core: Drizzle schema, Zod tool schemas, unit
   conversion (canonical metric storage), timezone handling, repositories with
   dedup/upsert semantics. No MCP or HTTP dependencies.
@@ -39,7 +39,7 @@ npm run deploy         # deploy to Cloudflare
 
 ## Status
 
-The initial platform ([specs/01-initial-platform](specs/01-initial-platform/SPEC.md))
+The initial platform ([ADR-001](docs/decisions/001-agent-first-mcp-surface.md) onward)
 is implemented through Phase 3, minus one leftover item:
 
 - **Phase 1 — core daily loop:** check-ins, workouts, meals, regimen, goals,
@@ -53,8 +53,9 @@ is implemented through Phase 3, minus one leftover item:
   reconciliation, and all six MCP prompts (`morning_checkin`, `weekly_review`,
   …). Upload ergonomics from mobile is still open (#7).
 
-Later epics (PWA dashboard, record edits, training plans, nutrition accuracy,
-Garmin weigh-ins, macro meters) are indexed in [specs/](specs/README.md).
+Later work (PWA dashboard, record edits, training plans, nutrition accuracy,
+Garmin weigh-ins, macro meters) is recorded in
+[docs/decisions/](docs/decisions/README.md).
 What's next — ideas not yet specced, such as upload ergonomics and proactive
 briefings — is tracked in
 [GitHub Issues](https://github.com/whitebirchio/corpus/issues).

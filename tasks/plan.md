@@ -57,11 +57,11 @@ Citation passes need the ADR numbers to exist, so they can cite `ADR-NNN` and th
 - [x] Task 19: web SPA: `api.ts`, views (Today, Plan, Scan, Trends), `PlannedSession.tsx`
 
 ### Checkpoint B: code clean
-- [ ] `npm run typecheck && npm test` pass; `python -m py_compile` + sync.py tests pass
-- [ ] No `specs/` or `SPEC §` left under `apps/`, `packages/` or `.github/`
+- [x] `npm run typecheck && npm test` pass; `python -m py_compile` + sync.py tests pass
+- [x] No `specs/` or `SPEC §` left under `apps/`, `packages/` or `.github/` (except prompts.ts:100, runtime prompt text, pending Scott)
 
 ### Phase 4: Docs, issue, retire
-- [ ] Task 20: `CLAUDE.md`, `README.md`, `docs/SETUP.md` point to ADRs; drop the "frozen archive" wording
+- [x] Task 20: `CLAUDE.md`, `README.md`, `docs/SETUP.md` point to ADRs; drop the "frozen archive" wording
 - [ ] Task 21: GitHub issue: slim `get_daily_summary`
 - [ ] Task 22: Delete `specs/`, run the final sweep, update memory and the PR #9 description
 

@@ -115,7 +115,7 @@ Each task applies the citation rule to its files.
 
 ---
 
-## Task 20: Top-level docs point to ADRs
+## Task 20: Top-level docs point to ADRs ✅
 
 **Description:** `CLAUDE.md`: replace the "frozen archive" paragraph with "the history lives in ADRs (`docs/decisions/`); the old epic specs are under the `specs-archive` tag", and re-point the `§5.9` and "epic 2" mentions. `README.md`: replace the `specs/` and `specs/01` links. `docs/SETUP.md`: three references (lines ~141, ~216).
 

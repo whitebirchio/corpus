@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Corpus is a personal health-tracking system (workouts, nutrition, meds/supplements, labs, biometrics, goals) that is **AI-agent-first**: the primary product surface is a remote MCP server that Claude connects to as a custom connector, so "features" are MCP tools/resources/prompts, and daily interaction (both data entry and analysis) happens conversationally. A read-only **PWA dashboard** (`apps/web`, epic 2) is a complementary, glanceable second interface over the same core — never a PWA-only capability.
+Corpus is a personal health-tracking system (workouts, nutrition, meds/supplements, labs, biometrics, goals) that is **AI-agent-first**: the primary product surface is a remote MCP server that Claude connects to as a custom connector, so "features" are MCP tools/resources/prompts, and daily interaction (both data entry and analysis) happens conversationally. A read-only **PWA dashboard** (`apps/web`, ADR-016) is a complementary, glanceable second interface over the same core — never a PWA-only capability.
 
 ## Commands
 
@@ -40,7 +40,7 @@ Driving the local worker's OAuth-gated `/mcp` endpoint: `npx @modelcontextprotoc
 
 ## Architecture
 
-**Hexagonal core + thin adapters.** All domain logic lives in `packages/core` (`@corpus/core`) — Drizzle schema, Zod schemas, unit conversion, timezone math, and the repository layer with dedup/upsert semantics. It has **no MCP or HTTP dependencies** and runs against any Postgres. `apps/mcp-server` is a Cloudflare Worker that is a thin MCP adapter over it; `apps/web` is a second worker that is a thin REST adapter (Hono) plus the static PWA bundle (Vite + React, same origin, first-party session cookie — see `specs/02-pwa-client/`); `apps/garmin-sync` is a Python GitHub Actions job. When adding a capability, the logic and its tests belong in core; the tool/route wrapper in a worker should stay a thin validate → call-repo → echo-result shell.
+**Hexagonal core + thin adapters.** All domain logic lives in `packages/core` (`@corpus/core`) — Drizzle schema, Zod schemas, unit conversion, timezone math, and the repository layer with dedup/upsert semantics. It has **no MCP or HTTP dependencies** and runs against any Postgres. `apps/mcp-server` is a Cloudflare Worker that is a thin MCP adapter over it; `apps/web` is a second worker that is a thin REST adapter (Hono) plus the static PWA bundle (Vite + React, same origin, first-party session cookie — see ADR-017, ADR-018); `apps/garmin-sync` is a Python GitHub Actions job. When adding a capability, the logic and its tests belong in core; the tool/route wrapper in a worker should stay a thin validate → call-repo → echo-result shell.
 
 **Request path (worker):** `apps/mcp-server/src/index.ts` wires `OAuthProvider` (OAuth 2.1 authz server facing Claude + router). `/mcp` → `CorpusMcpAgent` (a per-session Durable Object, `mcp.ts`) which registers tools (`tools.ts`), resources (`schemaDoc.ts`, `profile.ts`), and prompts (`prompts.ts`). Everything else → Google login handler (`auth/google.ts`), gated by a hard **email allowlist**.
 
@@ -55,7 +55,7 @@ Driving the local worker's OAuth-gated `/mcp` endpoint: `npx @modelcontextprotoc
 - **Canonical metric storage**: kg, meters, seconds, kcal. Tools accept unit-tagged `{ value, unit }` and the server converts (`core/units.ts`). The LLM never does unit math; conversion never happens in a tool handler.
 - **snake_case casing**: every `drizzle(client, { casing: "snake_case" })` call AND `drizzle.config.ts` must set this. Column props are camelCase in TS, snake_case in the DB.
 
-**Dedup is a first-class requirement** (`core` §5.9): no write blindly inserts. Three tiers — content hash (`documents.sha256`), natural-key `ON CONFLICT` upsert (e.g. `daily_metrics` on `(user_id, local_date)`, imports keyed on `source_ref`), and agent-mediated soft-match for records with no stable identity (conversational meals/workouts), which returns candidates for the agent to confirm rather than guessing. Every importer is safely re-runnable.
+**Dedup is a first-class requirement** (ADR-008): no write blindly inserts. Three tiers — content hash (`documents.sha256`), natural-key `ON CONFLICT` upsert (e.g. `daily_metrics` on `(user_id, local_date)`, imports keyed on `source_ref`), and agent-mediated soft-match for records with no stable identity (conversational meals/workouts), which returns candidates for the agent to confirm rather than guessing. Every importer is safely re-runnable.
 
 **Garmin sync** (`apps/garmin-sync/sync.py`, Python — the Workers sandbox can't run the `garminconnect` library) pulls a trailing window nightly and POSTs raw JSON to `/garmin/ingest`; **all mapping/reconciliation lives in `packages/core/src/import/garmin.ts`** (one write path, PGlite-tested). Backfill = re-run the pull; idempotent merges repopulate the window.
 
@@ -72,4 +72,4 @@ New work follows the agent-skills workflow as-is (`/spec` → `/plan` → `/buil
 - **Architecture decisions:** ADRs in `docs/decisions/`.
 - **Ideas not yet specced:** GitHub Issues. (Task lists for specced work still go in `tasks/todo.md`.)
 
-`specs/` is a **frozen archive** of epics 1–7, written before adopting agent-skills. Don't add to it, edit it, or renumber it — code comments cite it by path and section (e.g. `specs/01-initial-platform/SPEC.md` §5 data model, §6 MCP surface, §7 auth, §8 flows, §5.9 idempotency). For the current data model, `packages/core/src/db/schema.ts` is the source of truth; the archived specs record the original rationale. `docs/` holds evergreen how-to (setup, dev workflow) plus the ADRs.
+The design history lives in the ADRs: `docs/decisions/README.md` indexes them, and code comments cite them as `ADR-NNN`. When a decision changes, write a new ADR that supersedes the old one rather than editing it. ADRs 001–027 were backfilled from the pre-agent-skills epic specs, which are kept under the git tag `specs-archive` (e.g. `git show specs-archive:specs/01-initial-platform/SPEC.md`). For the current data model, `packages/core/src/db/schema.ts` is the source of truth. `docs/` holds evergreen how-to (setup, dev workflow) plus the ADRs.
