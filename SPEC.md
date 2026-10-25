@@ -13,7 +13,7 @@ Audience: Scott and future agent sessions. The test of success: an agent asking 
 
 ### Honesty rule for backfilled ADRs
 
-Each ADR's `Date` is when the decision was actually made, taken from the spec text or the git date the spec was added. `Status` reflects what happened later, so a decision reversed in a later epic is `Superseded by ADR-NNN`. Each ADR ends with a provenance line: `Backfilled 2026-10-24 from specs/NN-slug/SPEC.md §2 #N`. Alternatives come only from what the specs recorded; nothing is invented after the fact.
+Each ADR's `Date` is when the decision was actually made, taken from the spec text or the git date the spec was added. `Status` reflects what happened later, so a decision reversed in a later epic is `Superseded by ADR-NNN`. Each ADR ends with a provenance line: `Backfilled 2026-10-25 from specs/NN-slug/SPEC.md §2 #N @ specs-archive`. Alternatives come only from what the specs recorded; nothing is invented after the fact.
 
 ### ADRs to write
 
@@ -109,7 +109,7 @@ A signed, stateless httpOnly cookie with a 90-day sliding expiry, re-issued on e
 - No session table, so there is no remote logout (deferred until wanted) …
 
 ---
-Backfilled 2026-10-24 from specs/02-pwa-client/SPEC.md §2 #6–8, #15 and FOLLOWUPS.md #6–7.
+Backfilled 2026-10-25 from specs/02-pwa-client/SPEC.md §2 #6–8, #15 and FOLLOWUPS.md judgement calls #6–7 @ specs-archive.
 ```
 
 Code comments keep their current density and voice; only the citation token changes, e.g. `(SPEC §2 #8)` → `(ADR-018)`.
@@ -153,3 +153,4 @@ No new automated tests; this is docs and comments. Verification:
 ## Open Questions
 
 1. **Epic 5 phase 3 leftovers** (the `FDC_API_KEY` secret on the `apps/web` worker, the on-phone scan smoke test, continued catalog seeding): are any still open? Until Scott answers, no issue is created; the build does not block on this.
+2. **`apps/mcp-server/src/prompts.ts:100`** (found during build). The `log_meal_conversation` prompt text, which is sent to Claude at runtime, says `(specs/05-nutrition-accuracy/SPEC.md, phase 1 protocol)`. Claude can't open that path from a conversation, so the reference is dead either way. But editing it changes runtime prompt content, which the boundaries say to ask about first. It's left unchanged until Scott decides; the proposed edit is to drop the parenthetical.

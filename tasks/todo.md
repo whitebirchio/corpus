@@ -24,8 +24,8 @@ Plan: [tasks/plan.md](plan.md) · Spec: [SPEC.md](../SPEC.md)
 **Description:** 001 agent-first MCP surface (01 §1 #3, §2 #1) · 002 no web UI in v1, *Superseded by ADR-016* (01 §2 #2) · 003 Cloudflare + Neon + R2 under <$5/mo (01 §1 #2, §2 #9, §4) · 004 hexagonal core + ports (01 §1 #7, 02 §2 #5, 05 §2 #8) · 005 MCP OAuth 2.1 + DCR, Google upstream, allowlist (01 §2 #10, §7). All dated 2026-07-01.
 
 **Acceptance criteria:**
-- [ ] 5 files in `docs/decisions/`, each with all template sections and a provenance line
-- [ ] Alternatives match those recorded in the source spec
+- [x] 5 files in `docs/decisions/`, each with all template sections and a provenance line
+- [x] Alternatives match those recorded in the source spec
 
 **Verification:** `grep -c "^## " docs/decisions/00[1-5]-*.md` shows 6 each; read against the sources · **Dependencies:** None · **Files:** 5 new · **Scope:** S
 
@@ -68,8 +68,8 @@ Plan: [tasks/plan.md](plan.md) · Spec: [SPEC.md](../SPEC.md)
 **Description:** 025 food catalog + FDC/OFF, agent-confirmed, never blocks a log (05 §2 #1, #3–6), 2026-07-18 · 026 Garmin is the weigh-in source of truth, window-scoped deletes, live-data traps (06 §2 #2–9 + IMPLEMENTATION live-data notes), 2026-10-23 · 027 all nutrition targets are maxima (07 §1), 2026-10-24. `docs/decisions/README.md`: a table of number, title, status, date.
 
 **Acceptance criteria:**
-- [ ] As in Task 2
-- [ ] The index lists all 27 with correct statuses (002 and 013 Superseded)
+- [x] As in Task 2
+- [x] The index lists all 27 with correct statuses (002 and 013 Superseded)
 
 **Verification:** `ls docs/decisions | wc -l` = 28; every index link resolves · **Dependencies:** Tasks 2–6 · **Files:** 4 new · **Scope:** S
 
@@ -86,9 +86,9 @@ Plan: [tasks/plan.md](plan.md) · Spec: [SPEC.md](../SPEC.md)
 Each task applies the citation rule to its files.
 
 **Acceptance criteria (each):**
-- [ ] `grep -nE "specs/|SPEC" <files>` returns nothing
-- [ ] Every `ADR-NNN` introduced exists in `docs/decisions/`
-- [ ] The diff touches comment lines only
+- [x] `grep -nE "specs/|SPEC" <files>` returns nothing (except prompts.ts:100, pending Scott)
+- [x] Every `ADR-NNN` introduced exists in `docs/decisions/`
+- [x] The diff touches comment lines only (plus one describe() title, task 14)
 
 **Verification (each):** `npm run typecheck`; plus `npx vitest run` (in `packages/core`) for core tasks, `npm test -w corpus-web` for web tasks, and `python -m py_compile` + `python -m pytest apps/garmin-sync` for Task 14.
 **Dependencies (each):** Task 7.
@@ -109,9 +109,9 @@ Each task applies the citation rule to its files.
 ---
 
 ## Checkpoint B: code clean
-- [ ] `npm run typecheck && npm test` pass
-- [ ] `python -m pytest apps/garmin-sync` passes
-- [ ] `grep -rnE "specs/|SPEC" apps packages .github --exclude-dir=node_modules` is empty
+- [x] `npm run typecheck && npm test` pass
+- [x] `python3 apps/garmin-sync/test_sync.py` passes (CI's command; not pytest)
+- [x] `grep -rnE "specs/|SPEC" apps packages .github --exclude-dir=node_modules` is empty (except prompts.ts:100)
 
 ---
 
@@ -120,14 +120,14 @@ Each task applies the citation rule to its files.
 **Description:** `CLAUDE.md`: replace the "frozen archive" paragraph with "the history lives in ADRs (`docs/decisions/`); the old epic specs are under the `specs-archive` tag", and re-point the `§5.9` and "epic 2" mentions. `README.md`: replace the `specs/` and `specs/01` links. `docs/SETUP.md`: three references (lines ~141, ~216).
 
 **Acceptance criteria:**
-- [ ] No `specs/` references in these files except mentions of the `specs-archive` tag
-- [ ] Every relative link resolves
+- [x] No `specs/` references in these files except mentions of the `specs-archive` tag
+- [x] Every relative link resolves
 
 **Verification:** grep + `ls` each link target · **Dependencies:** Task 7 · **Files:** 3 · **Scope:** S
 
 ---
 
-## Task 21: Issue — slim `get_daily_summary`
+## Task 21: Issue — slim `get_daily_summary` ✅ (#10)
 
 **Description:** `gh issue create` from the epic 6 follow-up: ~120K characters per call (insights ≈57K, goals ≈37K); slim to digests with on-demand detail.
 
@@ -135,19 +135,19 @@ Each task applies the citation rule to its files.
 
 ---
 
-## Task 22: Delete `specs/` and run the final sweep
+## Task 22: Delete `specs/` and run the final sweep ✅
 
 **Description:** Confirm the tag is on origin, then `git rm -r specs/`. Run the full sweep. Update the `corpus-project-overview` and `agent-skills-pure-workflow` memories (specs deleted, ADRs hold the history). Update the PR #9 title and description.
 
 **Acceptance criteria:**
-- [ ] `specs/` is gone; `git ls-remote --tags origin specs-archive` is non-empty
-- [ ] `grep -rnE "specs/" . --exclude-dir={node_modules,.git,docs/decisions}` returns nothing outside `SPEC.md`/`tasks/` (which describe this migration)
-- [ ] All SPEC success criteria are checked
+- [x] `specs/` is gone; `git ls-remote --tags origin specs-archive` is non-empty
+- [x] `grep -rnE "specs/" . --exclude-dir={node_modules,.git,docs/decisions}` returns nothing outside `SPEC.md`/`tasks/` (which describe this migration) — plus prompts.ts:100, pending Scott
+- [x] All SPEC success criteria are checked, except #2 for prompts.ts:100
 
 **Verification:** Checkpoint B commands again · **Dependencies:** Tasks 1, 8–21 · **Scope:** S
 
 ---
 
 ## Checkpoint C: complete
-- [ ] SPEC success criteria 1–6 met
-- [ ] PR #9 updated and ready for review
+- [x] SPEC success criteria 1–6 met, except #2 for prompts.ts:100 (pending Scott)
+- [x] PR #9 updated and ready for review

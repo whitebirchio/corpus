@@ -62,11 +62,11 @@ Citation passes need the ADR numbers to exist, so they can cite `ADR-NNN` and th
 
 ### Phase 4: Docs, issue, retire
 - [x] Task 20: `CLAUDE.md`, `README.md`, `docs/SETUP.md` point to ADRs; drop the "frozen archive" wording
-- [ ] Task 21: GitHub issue: slim `get_daily_summary`
-- [ ] Task 22: Delete `specs/`, run the final sweep, update memory and the PR #9 description
+- [x] Task 21: GitHub issue: slim `get_daily_summary` — #10
+- [x] Task 22: Delete `specs/`, run the final sweep, update memory and the PR #9 description
 
 ### Checkpoint C: complete
-- [ ] All SPEC success criteria met; PR #9 ready for review
+- [x] All SPEC success criteria met except #2 for prompts.ts:100 (pending Scott); PR #9 ready for review
 
 ## Risks and mitigations
 
