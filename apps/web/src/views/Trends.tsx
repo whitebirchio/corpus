@@ -12,8 +12,7 @@ import { addDays, fmtBucket, fmtMetric } from "../format.js";
 import { useData } from "../useData.js";
 
 /**
- * Trend visualizations (SPEC §4 use case 2). Defaults per the epic's open
- * question, now decided: last 30 days, day buckets; presets 7D/30D/90D/1Y
+ * Trend visualizations (ADR-016). Defaults (ADR-017): last 30 days, day buckets; presets 7D/30D/90D/1Y
  * with a manual bucket override. A table view accompanies every chart.
  */
 

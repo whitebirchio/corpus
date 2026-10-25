@@ -5,7 +5,7 @@ import { addDays, fmtBucket, fmtDate } from "../format.js";
 import { useData } from "../useData.js";
 
 /**
- * The week's training plan (SPEC 04 §6): Mon–Sun with per-session status and
+ * The week's training plan (ADR-022): Mon–Sun with per-session status and
  * prescriptions. Read-only — all plan changes happen conversationally.
  */
 export function Plan({ me }: { me: MeResponse }) {

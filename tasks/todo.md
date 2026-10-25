@@ -102,9 +102,9 @@ Each task applies the citation rule to its files.
 - [x] **Task 14:** `packages/core/test/{garmin-import,meals-catalog}.test.ts`, `apps/garmin-sync/{sync,test_sync}.py`, `.github/workflows/garmin-sync.yml` · S
 - [x] **Task 15:** `apps/mcp-server/src/{tools,prompts,mcp,schemaDoc,profile}.ts` · S — prompts.ts:100 runtime prompt text left for Scott
 - [x] **Task 16:** `apps/mcp-server/src/{auth/google,db,garmin,upload,nutrition,trainingProfile}.ts`, `wrangler.jsonc` · S (7 files, one-line edits each)
-- [ ] **Task 17:** `apps/web/worker/{api,auth,session,db,index}.ts` (api.ts has 14 cites) · S
-- [ ] **Task 18:** `apps/web/worker/{nutrition,env.d}.ts`, `apps/web/{wrangler.jsonc,vite.config.ts}`, `apps/web/src/styles.css` · S
-- [ ] **Task 19:** `apps/web/src/api.ts`, `src/views/{Today,Plan,Scan,Trends}.tsx`, `src/components/PlannedSession.tsx` · S
+- [x] **Task 17:** `apps/web/worker/{api,auth,session,db,index}.ts` (api.ts has 14 cites) · S
+- [x] **Task 18:** `apps/web/worker/{nutrition,env.d}.ts`, `apps/web/{wrangler.jsonc,vite.config.ts}`, `apps/web/src/styles.css` · S
+- [x] **Task 19:** `apps/web/src/api.ts`, `src/views/{Today,Plan,Scan,Trends}.tsx`, `src/components/PlannedSession.tsx` · S
 
 ---
 

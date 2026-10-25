@@ -52,9 +52,9 @@ Citation passes need the ADR numbers to exist, so they can cite `ADR-NNN` and th
 - [x] Task 14: core tests (2 files) + `apps/garmin-sync` (sync.py, test_sync.py) + `.github/workflows/garmin-sync.yml`
 - [x] Task 15: mcp-server: `tools.ts`, `prompts.ts`, `mcp.ts`, `schemaDoc.ts`, `profile.ts`
 - [x] Task 16: mcp-server: `auth/google.ts`, `db.ts`, `garmin.ts`, `upload.ts`, `nutrition.ts`, `trainingProfile.ts`, `wrangler.jsonc`
-- [ ] Task 17: web worker: `api.ts`, `auth.ts`, `session.ts`, `db.ts`, `index.ts`
-- [ ] Task 18: web worker + config: `nutrition.ts`, `env.d.ts`, `wrangler.jsonc`, `vite.config.ts`, `styles.css`
-- [ ] Task 19: web SPA: `api.ts`, views (Today, Plan, Scan, Trends), `PlannedSession.tsx`
+- [x] Task 17: web worker: `api.ts`, `auth.ts`, `session.ts`, `db.ts`, `index.ts`
+- [x] Task 18: web worker + config: `nutrition.ts`, `env.d.ts`, `wrangler.jsonc`, `vite.config.ts`, `styles.css`
+- [x] Task 19: web SPA: `api.ts`, views (Today, Plan, Scan, Trends), `PlannedSession.tsx`
 
 ### Checkpoint B: code clean
 - [ ] `npm run typecheck && npm test` pass; `python -m py_compile` + sync.py tests pass
