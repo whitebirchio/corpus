@@ -63,7 +63,7 @@ Plan: [tasks/plan.md](plan.md) · Spec: [SPEC.md](../SPEC.md)
 
 ---
 
-## Task 7: ADRs 025–027 + index
+## Task 7: ADRs 025–027 + index ✅
 
 **Description:** 025 food catalog + FDC/OFF, agent-confirmed, never blocks a log (05 §2 #1, #3–6), 2026-07-18 · 026 Garmin is the weigh-in source of truth, window-scoped deletes, live-data traps (06 §2 #2–9 + IMPLEMENTATION live-data notes), 2026-10-23 · 027 all nutrition targets are maxima (07 §1), 2026-10-24. `docs/decisions/README.md`: a table of number, title, status, date.
 
@@ -76,8 +76,8 @@ Plan: [tasks/plan.md](plan.md) · Spec: [SPEC.md](../SPEC.md)
 ---
 
 ## Checkpoint A: ADRs complete
-- [ ] 27 ADRs + index; each Superseded-by target exists
-- [ ] Human review of the ADR set (pause here unless running `/build auto`)
+- [x] 27 ADRs + index; each Superseded-by target exists
+- [x] Human review of the ADR set (skipped: running `/build auto`)
 
 ---
 

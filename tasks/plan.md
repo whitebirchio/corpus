@@ -36,11 +36,11 @@ Citation passes need the ADR numbers to exist, so they can cite `ADR-NNN` and th
 - [x] Task 4: ADRs 011–015 (regimen, fresh start, manual Garmin exports → superseded, nightly Garmin sync, drop MacroFactor)
 - [x] Task 5: ADRs 016–020 (PWA, apps/web worker, session/CSRF, imports immutable, status unions)
 - [x] Task 6: ADRs 021–024 (planning brain, plan tables, linking + plan_changes, tools over resources)
-- [ ] Task 7: ADRs 025–027 + `docs/decisions/README.md` index
+- [x] Task 7: ADRs 025–027 + `docs/decisions/README.md` index
 
 ### Checkpoint A: ADRs complete
-- [ ] 27 files plus the index; template sections, provenance line, and Superseded links all valid
-- [ ] Human review of the ADR set before the citation passes
+- [x] 27 files plus the index; template sections, provenance line, and Superseded links all valid
+- [x] Human review of the ADR set before the citation passes (skipped: /build auto)
 
 ### Phase 3: Citation passes
 - [ ] Task 8: core: `db/schema.ts`
