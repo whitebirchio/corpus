@@ -14,3 +14,7 @@ coverage/
 # OS / editor
 .DS_Store
 *.log
+
+# Claude Code — local-only (worktrees from background sessions, personal settings)
+.claude/worktrees/
+.claude/settings.local.json
