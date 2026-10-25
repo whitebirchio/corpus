@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 SCRIPT = str(Path(__file__).with_name("sync.py"))
 
 # Shaped exactly like a live get_weigh_ins(includeAll) response (2026-10-23
-# probe, specs/06-garmin-weigh-ins §10), trimmed to two days; the first day
+# probe, ADR-026), trimmed to two days; the first day
 # carries a second reading to prove per-day flattening keeps every entry.
 _ENTRY = {
     "samplePk": 1792754614878,
