@@ -32,7 +32,7 @@ Citation passes need the ADR numbers to exist, so they can cite `ADR-NNN` and th
 
 ### Phase 2: ADRs (in decision order)
 - [x] Task 2: ADRs 001–005 (platform: agent-first, no UI v1, hosting, hexagonal core, MCP auth)
-- [ ] Task 3: ADRs 006–010 (RLS, canonical units, dedup tiers, keep originals, granularity)
+- [x] Task 3: ADRs 006–010 (RLS, canonical units, dedup tiers, keep originals, granularity)
 - [ ] Task 4: ADRs 011–015 (regimen, fresh start, manual Garmin exports → superseded, nightly Garmin sync, drop MacroFactor)
 - [ ] Task 5: ADRs 016–020 (PWA, apps/web worker, session/CSRF, imports immutable, status unions)
 - [ ] Task 6: ADRs 021–024 (planning brain, plan tables, linking + plan_changes, tools over resources)

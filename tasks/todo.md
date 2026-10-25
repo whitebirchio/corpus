@@ -31,7 +31,7 @@ Plan: [tasks/plan.md](plan.md) · Spec: [SPEC.md](../SPEC.md)
 
 ---
 
-## Task 3: ADRs 006–010
+## Task 3: ADRs 006–010 ✅
 
 **Description:** 006 Postgres RLS + denormalized `user_id` + SELECT-only `query_data` (01 §1 #5, §7) · 007 canonical metric storage (01 §1 #4, §11 #4; 04 §2 #10) · 008 three-tier dedup (01 §5.9) · 009 keep originals in R2 (01 §1 #6, §2 #4) · 010 record granularity (01 §2 #5–6). All 2026-07-01.
 
