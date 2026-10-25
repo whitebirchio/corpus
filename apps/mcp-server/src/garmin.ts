@@ -1,5 +1,5 @@
 /**
- * Garmin sync endpoints (specs/01-initial-platform/SPEC.md §8.4). Not part of the MCP surface — these
+ * Garmin sync endpoints (ADR-014). Not part of the MCP surface — these
  * serve the nightly GitHub Actions job (apps/garmin-sync), authenticated by a
  * shared secret (GARMIN_INGEST_SECRET, a Worker secret mirrored in the repo's
  * Actions secrets).
@@ -8,7 +8,7 @@
  *   PUT  /garmin/tokens?user=<email>  → store/rotate the token blob
  *   POST /garmin/ingest               → { userEmail, days, activities,
  *                                         weighIns? } → import summary
- *                                       (weighIns: specs/06-garmin-weigh-ins)
+ *                                       (weighIns: ADR-026)
  *
  * The token store lets the stateless Actions runner reuse Garmin's refreshed
  * session across runs — only the very first login (or a revoked refresh

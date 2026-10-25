@@ -1,7 +1,7 @@
 /**
- * Rendering for the get_training_profile tool (specs/04-training-plans/SPEC.md §4.2):
+ * Rendering for the get_training_profile tool:
  * the athlete model as markdown that primes a planning conversation. A tool
- * rather than a resource by deliberate choice (SPEC 04 decision #13). Pure
+ * rather than a resource by deliberate choice (ADR-024). Pure
  * rendering, unit-testable; data comes from @corpus/core getTrainingProfile.
  */
 import {
