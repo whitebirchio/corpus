@@ -47,7 +47,7 @@ Plan: [tasks/plan.md](plan.md) · Spec: [SPEC.md](../SPEC.md)
 
 ---
 
-## Task 5: ADRs 016–020
+## Task 5: ADRs 016–020 ✅
 
 **Description:** 016 PWA not native, complementary and never PWA-only, supersedes 002 (02 §2 #1–2, #10; 05 §2 #7), 2026-07-02 · 017 `apps/web` worker: Hono + Vite/React, same origin (02 §2 #3–4, #12, #14; FOLLOWUPS #1, #3, #9) · 018 rolling signed-cookie session + Lax/header CSRF (02 §2 #6–8, #15; FOLLOWUPS #6–7) · 019 imported records immutable (02 §2 #11; 03 §2 #1), 2026-07-03 · 020 structured status unions (03 §2 #4), 2026-07-03.
 
