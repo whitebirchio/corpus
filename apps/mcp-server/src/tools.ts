@@ -1,5 +1,5 @@
 /**
- * MCP tool surface (specs/01-initial-platform/SPEC.md §6). Thin adapters: validate (Zod shapes from
+ * MCP tool surface (ADR-001, ADR-004). Thin adapters: validate (Zod shapes from
  * @corpus/core), open an RLS-scoped transaction, call the core repo, echo the
  * result back for confirmation. No business logic lives here.
  */
@@ -267,7 +267,7 @@ export function registerTools(
     },
   );
 
-  // --- food catalog & recipes (specs/05-nutrition-accuracy/SPEC.md §4) -------
+  // --- food catalog & recipes (ADR-025) -------------------------------------
 
   server.registerTool(
     "search_foods",
@@ -594,7 +594,7 @@ export function registerTools(
     },
   );
 
-  // --- training plans (specs/04-training-plans/SPEC.md §4.1) -----------------
+  // --- training plans (ADR-022) ---------------------------------------------
 
   server.registerTool(
     "upsert_milestone",
@@ -693,7 +693,7 @@ export function registerTools(
     },
   );
 
-  // --- athlete model (specs/04-training-plans/SPEC.md §3.4) ------------------
+  // --- athlete model (ADR-023) ----------------------------------------------
 
   server.registerTool(
     "upsert_equipment_item",
