@@ -43,7 +43,7 @@ Citation passes need the ADR numbers to exist, so they can cite `ADR-NNN` and th
 - [x] Human review of the ADR set before the citation passes (skipped: /build auto)
 
 ### Phase 3: Citation passes
-- [ ] Task 8: core: `db/schema.ts`
+- [x] Task 8: core: `db/schema.ts`
 - [ ] Task 9: core: `schemas/*` (inputs, foods, labs, training, trends)
 - [ ] Task 10: core: `repos/` meals, foods, recipes, trends, summary
 - [ ] Task 11: core: `repos/` workouts, movements, training, athlete, regimen

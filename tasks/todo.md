@@ -93,7 +93,7 @@ Each task applies the citation rule to its files.
 **Verification (each):** `npm run typecheck`; plus `npx vitest run` (in `packages/core`) for core tasks, `npm test -w corpus-web` for web tasks, and `python -m py_compile` + `python -m pytest apps/garmin-sync` for Task 14.
 **Dependencies (each):** Task 7.
 
-- [ ] **Task 8:** `packages/core/src/db/schema.ts` (14 cites) · S
+- [x] **Task 8:** `packages/core/src/db/schema.ts` (14 cites) · S
 - [ ] **Task 9:** `packages/core/src/schemas/{inputs,foods,labs,training,trends}.ts` · S
 - [ ] **Task 10:** `packages/core/src/repos/{meals,foods,recipes,trends,summary}.ts` · S
 - [ ] **Task 11:** `packages/core/src/repos/{workouts,movements,training,athlete,regimen}.ts` · S
