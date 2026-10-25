@@ -1,7 +1,7 @@
 /**
  * Barcode lookup against Open Food Facts / USDA FDC — the web twin of
- * apps/mcp-server/src/nutrition.ts (specs/05-nutrition-accuracy/SPEC.md
- * decision #8: fetch adapters live in the workers; normalization is core's).
+ * apps/mcp-server/src/nutrition.ts (ADR-004: fetch adapters live in the
+ * workers; normalization is core's).
  * Duplicated rather than shared, same call as worker/db.ts — revisit on a
  * third adapter. Only the barcode path is needed here; text search stays a
  * chat-side (MCP) capability.

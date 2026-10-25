@@ -6,7 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   // The built SPA (vite build → dist/client) rides Workers Static Assets:
   // asset requests are free and never touch the worker. Only /api/* and
-  // /auth/* invoke the worker (specs/02-pwa-client/SPEC.md §2 #12/#13).
+  // /auth/* invoke the worker (ADR-017).
   "assets": {
     "directory": "./dist/client",
     "binding": "ASSETS",
@@ -23,7 +23,7 @@
     "ALLOWED_EMAILS": "scott.schmalz@gmail.com,sammeade016@gmail.com",
     "DEFAULT_TIMEZONE": "America/New_York",
   },
-  // Secrets (npx wrangler secret put <NAME>), see specs/02-pwa-client/FOLLOWUPS.md:
+  // Secrets (npx wrangler secret put <NAME>), see docs/SETUP.md:
   //   DATABASE_URL          — Neon connection string (same DB as the MCP worker)
   //   GOOGLE_CLIENT_ID      — existing Google OAuth client; add this worker's
   //   GOOGLE_CLIENT_SECRET    /auth/callback as an authorized redirect URI
