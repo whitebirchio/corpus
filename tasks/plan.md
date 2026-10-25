@@ -31,7 +31,7 @@ Citation passes need the ADR numbers to exist, so they can cite `ADR-NNN` and th
 - [x] Task 1: Tag and push `specs-archive` — done 2026-10-25
 
 ### Phase 2: ADRs (in decision order)
-- [ ] Task 2: ADRs 001–005 (platform: agent-first, no UI v1, hosting, hexagonal core, MCP auth)
+- [x] Task 2: ADRs 001–005 (platform: agent-first, no UI v1, hosting, hexagonal core, MCP auth)
 - [ ] Task 3: ADRs 006–010 (RLS, canonical units, dedup tiers, keep originals, granularity)
 - [ ] Task 4: ADRs 011–015 (regimen, fresh start, manual Garmin exports → superseded, nightly Garmin sync, drop MacroFactor)
 - [ ] Task 5: ADRs 016–020 (PWA, apps/web worker, session/CSRF, imports immutable, status unions)

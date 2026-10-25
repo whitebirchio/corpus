@@ -19,7 +19,7 @@ Plan: [tasks/plan.md](plan.md) · Spec: [SPEC.md](../SPEC.md)
 
 ---
 
-## Task 2: ADRs 001–005
+## Task 2: ADRs 001–005 ✅
 
 **Description:** 001 agent-first MCP surface (01 §1 #3, §2 #1) · 002 no web UI in v1, *Superseded by ADR-016* (01 §2 #2) · 003 Cloudflare + Neon + R2 under <$5/mo (01 §1 #2, §2 #9, §4) · 004 hexagonal core + ports (01 §1 #7, 02 §2 #5, 05 §2 #8) · 005 MCP OAuth 2.1 + DCR, Google upstream, allowlist (01 §2 #10, §7). All dated 2026-07-01.
 
