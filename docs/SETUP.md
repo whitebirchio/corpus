@@ -93,7 +93,11 @@ Claude apps.
 1. Create a Cloudflare API token (dash → My Profile → API Tokens →
    "Edit Cloudflare Workers" template).
 2. Add it as the `CLOUDFLARE_API_TOKEN` secret in the GitHub repo settings.
-   Pushes to `main` then typecheck, test, and deploy automatically.
+   The `CI` workflow then runs in two stages. `build` (every PR and push)
+   typechecks, tests, and builds the web bundle. `deploy` (pushes to `main`
+   only, under the `production` environment) runs only once `build` passes,
+   and ships both workers using that same bundle. To re-deploy `main` without
+   a new commit: Actions → CI → Run workflow.
 
 ## 5. Connect Claude
 
