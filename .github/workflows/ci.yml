@@ -1,12 +1,17 @@
+# Build → deploy. `build` runs on every PR and push; `deploy` runs only after
+# `build` passes on main, and ships the web bundle `build` produced rather than
+# re-running its checks.
 name: CI
 
 on:
   pull_request:
   push:
     branches: [main]
+  # Manual re-deploy of main without a new commit (on any other branch: build only).
+  workflow_dispatch:
 
 jobs:
-  check:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,3 +24,48 @@ jobs:
       - run: npm test
       # Garmin sync job (stdlib-only tests; garminconnect/requests are stubbed).
       - run: python3 apps/garmin-sync/test_sync.py
+      # Built here so PRs catch a broken web build too; deploy ships this exact bundle.
+      - name: Build web app
+        run: npm run build -w corpus-web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-client
+          path: apps/web/dist/client
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: production
+    # Job-level, so back-to-back merges deploy in order without PR builds
+    # queueing behind them.
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # Still needed: wrangler bundles each worker's TS (+ @corpus/core) at deploy time.
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-client
+          path: apps/web/dist/client
+      - name: Deploy MCP worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: apps/mcp-server
+          command: deploy
+      # `wrangler deploy`, not `npm run deploy` — the latter would rebuild the bundle.
+      - name: Deploy web worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: apps/web
+          command: deploy
