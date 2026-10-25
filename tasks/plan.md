@@ -28,7 +28,7 @@ Citation passes need the ADR numbers to exist, so they can cite `ADR-NNN` and th
 ## Task list
 
 ### Phase 1: Foundation
-- [ ] Task 1: Tag and push `specs-archive`
+- [x] Task 1: Tag and push `specs-archive` — done 2026-10-25
 
 ### Phase 2: ADRs (in decision order)
 - [ ] Task 2: ADRs 001–005 (platform: agent-first, no UI v1, hosting, hexagonal core, MCP auth)

@@ -7,13 +7,13 @@ Plan: [tasks/plan.md](plan.md) · Spec: [SPEC.md](../SPEC.md)
 
 ---
 
-## Task 1: Tag and push `specs-archive`
+## Task 1: Tag and push `specs-archive` ✅
 
 **Description:** Create an annotated tag `specs-archive` on `0f1a080` (origin/main, which contains `specs/01–07`) and push it.
 
 **Acceptance criteria:**
-- [ ] `git ls-remote --tags origin specs-archive` returns `0f1a080…`
-- [ ] `git ls-tree -r --name-only specs-archive specs/` lists all 7 epic specs
+- [x] `git ls-remote origin "refs/tags/specs-archive^{}"` returns `0f1a080…` (done 2026-10-25; tag object `347e05f`)
+- [x] `git ls-tree -r --name-only specs-archive specs/` lists all 7 epic specs (13 files, including the IMPLEMENTATION/FOLLOWUPS notes)
 
 **Verification:** both commands above · **Dependencies:** None · **Files:** none · **Scope:** XS
 
