@@ -150,7 +150,7 @@ No new automated tests; this is docs and comments. Verification:
 - **Slim `get_daily_summary`** (~120K characters): still open per the epic 6 notes, so it becomes an issue.
 - **Ghost GitHub Actions runs:** no issue, since only GitHub support can act on them.
 
-## Open Questions
+## Open Questions (all resolved 2026-10-25)
 
-1. **Epic 5 phase 3 leftovers** (the `FDC_API_KEY` secret on the `apps/web` worker, the on-phone scan smoke test, continued catalog seeding): are any still open? Until Scott answers, no issue is created; the build does not block on this.
+1. ~~**Epic 5 phase 3 leftovers**~~ **Resolved 2026-10-25:** Scott considers epic 5 complete and closed (the `FDC_API_KEY` on `apps/web`, the on-phone scan smoke test, catalog seeding). No issue is created.
 2. ~~**`apps/mcp-server/src/prompts.ts:100`**~~ **Resolved 2026-10-25:** Scott agreed the `(specs/05-nutrition-accuracy/SPEC.md, phase 1 protocol)` parenthetical in the `log_meal_conversation` prompt was meaningless to Claude, which can't read repo files over the connector, and the protocol is spelled out inline anyway. It was dropped. The one other repo path in a runtime string (`create_document_upload`'s "see docs/SETUP.md" misconfiguration note) stays, because it's relayed to the human operator, who has the repo.
