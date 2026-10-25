@@ -11,7 +11,7 @@ import type { Db } from "@corpus/core";
 
 /**
  * Run `fn` inside a transaction with `app.user_id` set, so Postgres RLS
- * scopes every statement to the authenticated user (specs/01-initial-platform/SPEC.md §7).
+ * scopes every statement to the authenticated user (ADR-006).
  * A fresh Pool per call: Workers isolates can't reliably share sockets across
  * requests, and Neon's serverless driver is built for this pattern.
  */

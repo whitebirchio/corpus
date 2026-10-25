@@ -1,6 +1,6 @@
 /**
  * Corpus PWA worker — REST adapter over @corpus/core plus the static app
- * shell (specs/02-pwa-client/SPEC.md §3). One origin: Workers Static Assets
+ * shell (ADR-017). One origin: Workers Static Assets
  * serves the built SPA directly (run_worker_first limits the worker to
  * /api/* and /auth/*), so cookie auth needs no CORS story.
  */

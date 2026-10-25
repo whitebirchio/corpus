@@ -1,9 +1,9 @@
 /**
- * First-party Google sign-in (specs/02-pwa-client/SPEC.md §3): the same
+ * First-party Google sign-in (ADR-018): the same
  * upstream verification + email allowlist + findOrCreateUser as the MCP
  * worker's OAuth leg (apps/mcp-server/src/auth/google.ts), but ending in a
  * first-party session cookie instead of an OAuth grant — a first-party app
- * needs no PKCE/DCR dance (SPEC §2 #7).
+ * needs no PKCE/DCR dance.
  */
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
@@ -114,7 +114,7 @@ authRoutes.get("/callback", async (c) => {
 });
 
 authRoutes.post("/logout", (c) => {
-  // Same CSRF stance as API writes (SPEC §2 #15).
+  // Same CSRF stance as API writes (ADR-018).
   if (c.req.header("x-corpus-csrf") !== "1") {
     return c.json({ error: "Missing X-Corpus-Csrf header" }, 403);
   }
