@@ -55,7 +55,7 @@ Plan: [tasks/plan.md](plan.md) · Spec: [SPEC.md](../SPEC.md)
 
 ---
 
-## Task 6: ADRs 021–024
+## Task 6: ADRs 021–024 ✅
 
 **Description:** 021 Claude is the planning brain (04 §2 #1) · 022 `planned_*` tables, one plan per week, uniform prescriptions, upcoming-only re-plan, and milestones/capability estimates as consequences (04 §2 #2–5, #11–12) · 023 agent-mediated linking + in-transaction `plan_changes`, athlete model (04 §2 #6–9) · 024 must-have context as tools, not resources (04 §2 #13). All 2026-07-05.
 
