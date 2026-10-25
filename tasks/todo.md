@@ -39,7 +39,7 @@ Plan: [tasks/plan.md](plan.md) · Spec: [SPEC.md](../SPEC.md)
 
 ---
 
-## Task 4: ADRs 011–015
+## Task 4: ADRs 011–015 ✅
 
 **Description:** 011 regimen + exceptions (01 §2 #7) · 012 fresh start + baselines (01 §1 #8, §2 #3) · 013 manual Garmin export imports, 2026-07-01, *Superseded by ADR-014* · 014 nightly unofficial-API Garmin pull in GitHub Actions, the Python job only forwards, mapping in core (01 §2 #8, §8.4, §11 #8; 06 §2 #1), 2026-07-02 · 015 drop MacroFactor import (01 §2 #8b), 2026-07-02.
 
