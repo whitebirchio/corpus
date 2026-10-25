@@ -71,7 +71,7 @@ function findIncompleteMovements(input: LogWorkoutInput): IncompleteMovement[] {
 }
 
 /**
- * specs/01-initial-platform/SPEC.md §5.9 tier 3: conversationally-logged workouts have no natural key,
+ * ADR-008 tier 3: conversationally-logged workouts have no natural key,
  * so before inserting we look for a same-day near-match (shared movements, or
  * same block-type mix for movement-less sessions like plain runs). If found
  * and allowDuplicate is not set, we return the candidates so the agent can ask.
@@ -289,7 +289,7 @@ export type DeleteWorkoutResult =
 /**
  * Edit session-level fields of a conversationally-logged workout. Blocks,
  * movements, and sets are intentionally not editable here — to fix reps/weights,
- * delete and re-log (specs/03-record-edits/SPEC.md). Only `source = "conversation"`
+ * delete and re-log (ADR-019). Only `source = "conversation"`
  * sessions are editable; imported (Garmin) sessions are refused so a re-sync can't
  * clobber the edit.
  */
@@ -476,7 +476,7 @@ export interface WorkoutDetail {
 /**
  * Full block-by-block, set-by-set detail for one session. Physical quantities
  * stay canonical (kg, meters, seconds); the adapter converts for display
- * (SPEC §3). Returns null when the session isn't the caller's.
+ * (ADR-007). Returns null when the session isn't the caller's.
  */
 export async function getWorkoutDetail(
   db: Db,

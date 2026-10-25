@@ -1,5 +1,5 @@
 /**
- * The athlete model (specs/04-training-plans/SPEC.md §3.4): equipment on hand,
+ * The athlete model (ADR-023): equipment on hand,
  * capability estimates (the agent's current beliefs with provenance), and
  * standing planning constraints. Structured where computable; fuzzy learnings
  * stay in insights (decision #8). getTrainingProfile aggregates it all for
@@ -117,7 +117,7 @@ function toCanonicalEstimate(est: { value: number; unit: string }): { value: num
 
 /**
  * Current-belief upsert on the natural key (user, movement?, metric, repMax?)
- * — SPEC 04 decision #12. Progression history lives in the actuals.
+ * (ADR-022). Progression history lives in the actuals.
  */
 export async function upsertCapabilityEstimate(
   db: Db,

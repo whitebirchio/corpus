@@ -35,7 +35,7 @@ export type UpsertRegimenResult =
   | { action: "dose_changed"; item: RegimenItem; previous: RegimenItem };
 
 /**
- * specs/01-initial-platform/SPEC.md §5.5: a dose/schedule change ends the current row and opens a new
+ * ADR-011: a dose/schedule change ends the current row and opens a new
  * one (history preserved for correlation); metadata-only changes update in
  * place; a brand-new substance inserts.
  */

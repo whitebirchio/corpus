@@ -1,8 +1,8 @@
 /**
- * Training plans (specs/04-training-plans/SPEC.md): goal milestones, the
+ * Training plans (ADR-022): goal milestones, the
  * one-week rolling plan of prescribed sessions, agent-mediated planned↔actual
  * linking, and the append-only change log. All mutations of a non-empty plan
- * record a plan_changes row in the same transaction (SPEC 04 decision #7).
+ * record a plan_changes row in the same transaction (ADR-023).
  */
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Db, UserCtx } from "../db/client.js";
@@ -256,7 +256,7 @@ async function insertPlannedBlocks(
 
 /**
  * Create or re-plan a calendar week (natural key user_id + week_start,
- * SPEC 04 decision #4). Re-planning replaces only `planned`-status sessions;
+ * ADR-022). Re-planning replaces only `planned`-status sessions;
  * completed/skipped/cancelled rows and their links are never clobbered
  * (decision #11), and requires a change note (decision #7).
  */
