@@ -1,5 +1,5 @@
 /**
- * Range / time-series reads for the PWA dashboard (specs/02-pwa-client/SPEC.md §4).
+ * Range / time-series reads for the PWA dashboard (ADR-017).
  *
  * Storage is daily-grain; week/month buckets are computed on read with a
  * per-metric aggregation — intake/mileage/burn are additive (sum within the
@@ -121,7 +121,7 @@ function toSeries(
 }
 
 /**
- * One time-series read per SPEC §4's metric table. Validation is repeated
+ * One time-series read per supported trend metric. Validation is repeated
  * here (not just in the Zod query schema) so direct repo callers get the
  * same guarantees as the REST adapter.
  */
@@ -164,7 +164,7 @@ export async function getTrend(db: Db, ctx: UserCtx, query: TrendQuery): Promise
       break;
     case "sleep":
       series = await fromDailyMetrics(db, ctx, from, to, bucket, starts, [
-        // Canonical seconds; the adapter renders as hours (SPEC §3).
+        // Canonical seconds; the adapter renders as hours (ADR-007).
         { key: "sleep", agg: "avg", unit: "s", col: dailyMetrics.sleepDurationS },
       ]);
       break;
@@ -185,7 +185,7 @@ export async function getTrend(db: Db, ctx: UserCtx, query: TrendQuery): Promise
       break;
     case "body_weight":
       series = await fromBodyMeasurements(db, ctx, from, to, bucket, starts, [
-        // Canonical kg; the adapter converts to the user's unit (SPEC §3).
+        // Canonical kg; the adapter converts to the user's unit (ADR-007).
         { key: "weight", unit: "kg", col: bodyMeasurements.weightKg },
       ]);
       break;
