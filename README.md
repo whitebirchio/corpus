@@ -28,6 +28,8 @@ Runs at ~$0/month on Cloudflare + Neon free tiers.
 See **[docs/SETUP.md](docs/SETUP.md)** for one-time account setup
 (Neon, Google OAuth, Cloudflare, Claude connector), and
 **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** for the local dev workflow.
+Invited users (no code involved) should start with
+**[docs/USER-GUIDE.md](docs/USER-GUIDE.md)**.
 
 ```sh
 npm install
